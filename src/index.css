@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    direction: rtl;
+    background: linear-gradient(135deg, #f5f3f0 0%, #e8e5e0 100%);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #1e6b4e #f3f4f6;
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: #f3f4f6;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: #1e6b4e;
+    border-radius: 4px;
+  }
+}
+
+@layer utilities {
+  .font-arabic {
+    font-family: 'Traditional Arabic', 'Arabic Typesetting', 'Simplified Arabic', Arial, sans-serif;
+  }
+
+  .islamic-pattern {
+    background-image:
+      repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(30, 107, 78, 0.02) 35px, rgba(30, 107, 78, 0.02) 70px),
+      repeating-linear-gradient(-45deg, transparent, transparent 35px, rgba(30, 107, 78, 0.02) 35px, rgba(30, 107, 78, 0.02) 70px);
+  }
+
+  .gold-shimmer {
+    background: linear-gradient(135deg, #d4af37 0%, #f4e5b0 50%, #d4af37 100%);
+    background-size: 200% 200%;
+    animation: shimmer 3s ease infinite;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  .star-decoration {
+    position: relative;
+  }
+
+  .star-decoration::before,
+  .star-decoration::after {
+    content: '✦';
+    position: absolute;
+    color: #d4af37;
+    font-size: 1.5rem;
+    opacity: 0.6;
+  }
+
+  .star-decoration::before {
+    right: -2rem;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .star-decoration::after {
+    left: -2rem;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+}
