@@ -1,13 +1,30 @@
 import { useState } from 'react';
-import { BookOpen, Clock, Moon, Sun, Compass, Sparkles } from 'lucide-react';
+import { BookOpen, Clock, Moon, Sun, Compass, Sparkles, HandHeart, Droplets } from 'lucide-react';
 import Footer from '../components/Footer';
 import Azkar from '../components/Azkar';
+import DailyDuas from './DailyDuas';
+import Tasbih from './Tasbih';
+import AllahNames from './AllahNames';
+
+type PageType = 'main' | 'morning' | 'evening' | 'duas' | 'tasbih' | 'names';
 
 export default function MuslimGuide() {
-  const [selectedAzkar, setSelectedAzkar] = useState<'morning' | 'evening' | null>(null);
+  const [currentPage, setCurrentPage] = useState<PageType>('main');
 
-  if (selectedAzkar) {
-    return <Azkar type={selectedAzkar} onBack={() => setSelectedAzkar(null)} />;
+  if (currentPage === 'morning' || currentPage === 'evening') {
+    return <Azkar type={currentPage} onBack={() => setCurrentPage('main')} />;
+  }
+
+  if (currentPage === 'duas') {
+    return <DailyDuas onBack={() => setCurrentPage('main')} />;
+  }
+
+  if (currentPage === 'tasbih') {
+    return <Tasbih onBack={() => setCurrentPage('main')} />;
+  }
+
+  if (currentPage === 'names') {
+    return <AllahNames onBack={() => setCurrentPage('main')} />;
   }
 
   return (
@@ -66,7 +83,7 @@ export default function MuslimGuide() {
           </div>
 
           <button
-            onClick={() => setSelectedAzkar('evening')}
+            onClick={() => setCurrentPage('evening')}
             className="w-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl p-6 border-2 border-green-800/20 dark:border-green-700/30 hover:border-yellow-600 dark:hover:border-yellow-500 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 group text-right"
           >
             <div className="bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/50 dark:to-purple-800/50 w-12 h-12 rounded-lg flex items-center justify-center mb-4 group-hover:from-purple-500 group-hover:to-purple-600 transition-all">
@@ -80,7 +97,7 @@ export default function MuslimGuide() {
           </button>
 
           <button
-            onClick={() => setSelectedAzkar('morning')}
+            onClick={() => setCurrentPage('morning')}
             className="w-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl p-6 border-2 border-green-800/20 dark:border-green-700/30 hover:border-yellow-600 dark:hover:border-yellow-500 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 group text-right"
           >
             <div className="bg-gradient-to-br from-amber-100 to-amber-200 dark:from-amber-900/50 dark:to-amber-800/50 w-12 h-12 rounded-lg flex items-center justify-center mb-4 group-hover:from-amber-500 group-hover:to-amber-600 transition-all">
@@ -88,6 +105,48 @@ export default function MuslimGuide() {
             </div>
             <h3 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2" style={{ fontFamily: 'Traditional Arabic, Arial' }}>أذكار الصباح</h3>
             <p className="text-gray-700 dark:text-gray-300 text-base md:text-lg mb-4" style={{ fontFamily: 'Traditional Arabic, Arial' }}>ابدأ يومك بالأذكار النبوية المباركة</p>
+            <div className="text-center py-3 bg-gradient-to-r from-green-600 to-green-800 rounded-lg">
+              <span className="text-white font-medium" style={{ fontFamily: 'Traditional Arabic, Arial' }}>اضغط للبدء</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => setCurrentPage('duas')}
+            className="w-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl p-6 border-2 border-green-800/20 dark:border-green-700/30 hover:border-yellow-600 dark:hover:border-yellow-500 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 group text-right"
+          >
+            <div className="bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900/50 dark:to-green-800/50 w-12 h-12 rounded-lg flex items-center justify-center mb-4 group-hover:from-green-500 group-hover:to-green-600 transition-all">
+              <HandHeart className="w-6 h-6 text-green-600 dark:text-green-400 group-hover:text-white transition-colors" />
+            </div>
+            <h3 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2" style={{ fontFamily: 'Traditional Arabic, Arial' }}>الأدعية اليومية</h3>
+            <p className="text-gray-700 dark:text-gray-300 text-base md:text-lg mb-4" style={{ fontFamily: 'Traditional Arabic, Arial' }}>أدعية مأثورة من السنة النبوية الشريفة</p>
+            <div className="text-center py-3 bg-gradient-to-r from-green-600 to-green-800 rounded-lg">
+              <span className="text-white font-medium" style={{ fontFamily: 'Traditional Arabic, Arial' }}>اضغط للبدء</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => setCurrentPage('tasbih')}
+            className="w-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl p-6 border-2 border-green-800/20 dark:border-green-700/30 hover:border-yellow-600 dark:hover:border-yellow-500 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 group text-right"
+          >
+            <div className="bg-gradient-to-br from-amber-100 to-orange-200 dark:from-amber-900/50 dark:to-orange-800/50 w-12 h-12 rounded-lg flex items-center justify-center mb-4 group-hover:from-amber-500 group-hover:to-orange-600 transition-all">
+              <Droplets className="w-6 h-6 text-amber-600 dark:text-amber-400 group-hover:text-white transition-colors" />
+            </div>
+            <h3 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2" style={{ fontFamily: 'Traditional Arabic, Arial' }}>المسبحة الإلكترونية</h3>
+            <p className="text-gray-700 dark:text-gray-300 text-base md:text-lg mb-4" style={{ fontFamily: 'Traditional Arabic, Arial' }}>عداد تسبيح رقمي لذكر الله</p>
+            <div className="text-center py-3 bg-gradient-to-r from-green-600 to-green-800 rounded-lg">
+              <span className="text-white font-medium" style={{ fontFamily: 'Traditional Arabic, Arial' }}>اضغط للبدء</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => setCurrentPage('names')}
+            className="w-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl p-6 border-2 border-green-800/20 dark:border-green-700/30 hover:border-yellow-600 dark:hover:border-yellow-500 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 group text-right"
+          >
+            <div className="bg-gradient-to-br from-teal-100 to-cyan-200 dark:from-teal-900/50 dark:to-cyan-800/50 w-12 h-12 rounded-lg flex items-center justify-center mb-4 group-hover:from-teal-500 group-hover:to-cyan-600 transition-all">
+              <Sparkles className="w-6 h-6 text-teal-600 dark:text-teal-400 group-hover:text-white transition-colors" />
+            </div>
+            <h3 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2" style={{ fontFamily: 'Traditional Arabic, Arial' }}>أسماء الله الحسنى</h3>
+            <p className="text-gray-700 dark:text-gray-300 text-base md:text-lg mb-4" style={{ fontFamily: 'Traditional Arabic, Arial' }}>الأسماء التسعة والتسعون لله تعالى</p>
             <div className="text-center py-3 bg-gradient-to-r from-green-600 to-green-800 rounded-lg">
               <span className="text-white font-medium" style={{ fontFamily: 'Traditional Arabic, Arial' }}>اضغط للبدء</span>
             </div>
