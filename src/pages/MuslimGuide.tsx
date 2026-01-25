@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { BookOpen, Clock, Moon, Sun, Compass, Sparkles, HandHeart, Droplets } from 'lucide-react';
+import { BookOpen, Clock, Moon, Sun, Compass, Sparkles, HandHeart, Droplets, Shield } from 'lucide-react';
 import Footer from '../components/Footer';
 import Azkar from '../components/Azkar';
 import DailyDuas from './DailyDuas';
 import Tasbih from './Tasbih';
 import AllahNames from './AllahNames';
+import Ruqyah from './Ruqyah';
 
-type PageType = 'main' | 'morning' | 'evening' | 'duas' | 'tasbih' | 'names';
+type PageType = 'main' | 'morning' | 'evening' | 'duas' | 'tasbih' | 'names' | 'ruqyah';
 
 export default function MuslimGuide() {
   const [currentPage, setCurrentPage] = useState<PageType>('main');
@@ -25,6 +26,10 @@ export default function MuslimGuide() {
 
   if (currentPage === 'names') {
     return <AllahNames onBack={() => setCurrentPage('main')} />;
+  }
+
+  if (currentPage === 'ruqyah') {
+    return <Ruqyah onBack={() => setCurrentPage('main')} />;
   }
 
   return (
@@ -147,6 +152,20 @@ export default function MuslimGuide() {
             </div>
             <h3 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2" style={{ fontFamily: 'Traditional Arabic, Arial' }}>أسماء الله الحسنى</h3>
             <p className="text-gray-700 dark:text-gray-300 text-base md:text-lg mb-4" style={{ fontFamily: 'Traditional Arabic, Arial' }}>الأسماء التسعة والتسعون لله تعالى</p>
+            <div className="text-center py-3 bg-gradient-to-r from-green-600 to-green-800 rounded-lg">
+              <span className="text-white font-medium" style={{ fontFamily: 'Traditional Arabic, Arial' }}>اضغط للبدء</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => setCurrentPage('ruqyah')}
+            className="w-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl p-6 border-2 border-green-800/20 dark:border-green-700/30 hover:border-yellow-600 dark:hover:border-yellow-500 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 group text-right"
+          >
+            <div className="bg-gradient-to-br from-emerald-100 to-green-200 dark:from-emerald-900/50 dark:to-green-800/50 w-12 h-12 rounded-lg flex items-center justify-center mb-4 group-hover:from-emerald-500 group-hover:to-green-600 transition-all">
+              <Shield className="w-6 h-6 text-emerald-600 dark:text-emerald-400 group-hover:text-white transition-colors" />
+            </div>
+            <h3 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2" style={{ fontFamily: 'Traditional Arabic, Arial' }}>الرقية الشرعية</h3>
+            <p className="text-gray-700 dark:text-gray-300 text-base md:text-lg mb-4" style={{ fontFamily: 'Traditional Arabic, Arial' }}>آيات قرآنية وأدعية للشفاء والحماية</p>
             <div className="text-center py-3 bg-gradient-to-r from-green-600 to-green-800 rounded-lg">
               <span className="text-white font-medium" style={{ fontFamily: 'Traditional Arabic, Arial' }}>اضغط للبدء</span>
             </div>
