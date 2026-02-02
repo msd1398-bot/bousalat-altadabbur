@@ -34,7 +34,14 @@ export default function PrayerTimes() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [lastPlayedPrayer, setLastPlayedPrayer] = useState<string | null>(null);
   const [audioLoaded, setAudioLoaded] = useState(false);
+  const [currentAudioSource, setCurrentAudioSource] = useState(0);
   const adhanAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const audioSources = [
+    'https://cdn.islamic.network/adhan/azan-makkah.mp3',
+    'https://ia801407.us.archive.org/1/items/adhaan_202010/adhaan.mp3',
+    'https://archive.org/download/adhaan_202010/adhaan.mp3',
+  ];
 
   useEffect(() => {
     getLocationAndPrayerTimes();
@@ -94,13 +101,28 @@ export default function PrayerTimes() {
     }
   };
 
-  const playAdhan = (prayer: PrayerTime) => {
-    if (adhanAudioRef.current) {
-      adhanAudioRef.current.currentTime = 0;
-      adhanAudioRef.current.play().catch(error => {
-        console.error('Error playing adhan:', error);
-      });
-    }
+  const playAdhan = async (prayer: PrayerTime) => {
+    if (!adhanAudioRef.current) return;
+
+    const tryPlayAudio = async (sourceIndex: number): Promise<boolean> => {
+      if (sourceIndex >= audioSources.length) {
+        return false;
+      }
+
+      try {
+        adhanAudioRef.current!.src = audioSources[sourceIndex];
+        adhanAudioRef.current!.currentTime = 0;
+        adhanAudioRef.current!.volume = 1.0;
+        await adhanAudioRef.current!.play();
+        setCurrentAudioSource(sourceIndex);
+        return true;
+      } catch (error) {
+        console.error(`Failed to play from source ${sourceIndex}:`, error);
+        return tryPlayAudio(sourceIndex + 1);
+      }
+    };
+
+    await tryPlayAudio(currentAudioSource);
   };
 
   const showNotification = (prayer: PrayerTime) => {
@@ -125,19 +147,30 @@ export default function PrayerTimes() {
       return;
     }
 
-    try {
-      adhanAudioRef.current.currentTime = 0;
-      adhanAudioRef.current.volume = 1.0;
-
-      const playPromise = adhanAudioRef.current.play();
-
-      if (playPromise !== undefined) {
-        await playPromise;
-        console.log('Adhan playing successfully');
+    const tryPlayAudio = async (sourceIndex: number): Promise<boolean> => {
+      if (sourceIndex >= audioSources.length) {
+        return false;
       }
-    } catch (error) {
-      console.error('Error playing adhan:', error);
-      alert('حدث خطأ في تشغيل الأذان. تأكد من السماح بتشغيل الصوت في المتصفح.');
+
+      try {
+        adhanAudioRef.current!.src = audioSources[sourceIndex];
+        adhanAudioRef.current!.currentTime = 0;
+        adhanAudioRef.current!.volume = 1.0;
+
+        await adhanAudioRef.current!.play();
+        setCurrentAudioSource(sourceIndex);
+        console.log(`Adhan playing from source ${sourceIndex}`);
+        return true;
+      } catch (error) {
+        console.error(`Failed to play from source ${sourceIndex}:`, error);
+        return tryPlayAudio(sourceIndex + 1);
+      }
+    };
+
+    const success = await tryPlayAudio(currentAudioSource);
+
+    if (!success) {
+      alert('حدث خطأ في تشغيل الأذان. تأكد من الاتصال بالإنترنت والسماح بتشغيل الصوت في المتصفح.');
     }
   };
 
@@ -537,7 +570,8 @@ export default function PrayerTimes() {
       <audio
         ref={adhanAudioRef}
         preload="auto"
-        src="https://server6.mp3quran.net/thubti/Athan/azan.mp3"
+        src={audioSources[0]}
+        crossOrigin="anonymous"
       />
     </div>
   );
