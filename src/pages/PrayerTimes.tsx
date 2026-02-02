@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Clock, MapPin, Sunrise, Sun, Sunset, Moon, Calendar, RefreshCw, ArrowLeft } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Clock, MapPin, Sunrise, Sun, Sunset, Moon, Calendar, RefreshCw, ArrowLeft, Volume2, VolumeX, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Footer from '../components/Footer';
 
@@ -27,9 +27,17 @@ export default function PrayerTimes() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hijriDate, setHijriDate] = useState<string>('');
+  const [adhanEnabled, setAdhanEnabled] = useState(() => {
+    const saved = localStorage.getItem('adhanEnabled');
+    return saved !== null ? JSON.parse(saved) : false;
+  });
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [lastPlayedPrayer, setLastPlayedPrayer] = useState<string | null>(null);
+  const adhanAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     getLocationAndPrayerTimes();
+    requestNotificationPermission();
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
@@ -37,8 +45,74 @@ export default function PrayerTimes() {
   useEffect(() => {
     if (prayerTimes.length > 0) {
       calculateNextPrayer();
+      checkPrayerTime();
     }
   }, [currentTime, prayerTimes]);
+
+  useEffect(() => {
+    localStorage.setItem('adhanEnabled', JSON.stringify(adhanEnabled));
+  }, [adhanEnabled]);
+
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      const permission = await Notification.requestPermission();
+      setNotificationsEnabled(permission === 'granted');
+    } else if ('Notification' in window && Notification.permission === 'granted') {
+      setNotificationsEnabled(true);
+    }
+  };
+
+  const checkPrayerTime = () => {
+    if (!adhanEnabled) return;
+
+    const now = currentTime;
+    const currentTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+    for (const prayer of prayerTimes) {
+      if (prayer.name === 'Sunrise') continue;
+
+      const prayerTimeStr = formatTime(prayer.time);
+
+      if (currentTimeStr === prayerTimeStr && lastPlayedPrayer !== `${prayer.name}-${currentTimeStr}`) {
+        playAdhan(prayer);
+        setLastPlayedPrayer(`${prayer.name}-${currentTimeStr}`);
+        showNotification(prayer);
+        break;
+      }
+    }
+  };
+
+  const playAdhan = (prayer: PrayerTime) => {
+    if (adhanAudioRef.current) {
+      adhanAudioRef.current.play().catch(error => {
+        console.error('Error playing adhan:', error);
+      });
+    }
+  };
+
+  const showNotification = (prayer: PrayerTime) => {
+    if (notificationsEnabled && 'Notification' in window) {
+      new Notification('حان وقت الصلاة', {
+        body: `حان الآن وقت صلاة ${prayer.arabicName}`,
+        icon: '/icon.svg',
+        badge: '/icon.svg',
+        tag: 'prayer-time',
+        requireInteraction: true
+      });
+    }
+  };
+
+  const toggleAdhan = () => {
+    setAdhanEnabled(!adhanEnabled);
+  };
+
+  const testAdhan = () => {
+    if (adhanAudioRef.current) {
+      adhanAudioRef.current.play().catch(error => {
+        console.error('Error playing adhan:', error);
+      });
+    }
+  };
 
   const getLocationAndPrayerTimes = async () => {
     try {
@@ -300,6 +374,66 @@ export default function PrayerTimes() {
           </div>
         </div>
 
+        <div className="mb-8 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 border-2 border-green-800/20 dark:border-green-700/30">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-3">
+              <Bell className="text-green-700 dark:text-green-500" size={24} />
+              <div>
+                <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
+                  تفعيل الأذان
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
+                  سيتم تشغيل الأذان تلقائياً عند حلول وقت الصلاة
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={testAdhan}
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl font-medium transition-all duration-300 hover:shadow-lg transform hover:scale-105 flex items-center gap-2"
+                style={{ fontFamily: 'Traditional Arabic, Arial' }}
+              >
+                <Volume2 size={18} />
+                <span>تجربة</span>
+              </button>
+
+              <button
+                onClick={toggleAdhan}
+                className={`px-6 py-3 rounded-xl font-bold transition-all duration-300 transform hover:scale-105 flex items-center gap-2 ${
+                  adhanEnabled
+                    ? 'bg-gradient-to-r from-green-600 to-green-700 text-white shadow-lg shadow-green-600/30'
+                    : 'bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                }`}
+                style={{ fontFamily: 'Traditional Arabic, Arial' }}
+              >
+                {adhanEnabled ? (
+                  <>
+                    <Volume2 size={20} />
+                    <span>مفعّل</span>
+                  </>
+                ) : (
+                  <>
+                    <VolumeX size={20} />
+                    <span>معطّل</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {adhanEnabled && (
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-2 text-green-700 dark:text-green-500">
+                <Bell size={18} />
+                <p className="text-sm font-medium" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
+                  الأذان مفعّل - سيتم التشغيل تلقائياً عند حلول وقت الصلاة
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
         {nextPrayer && (
           <div className="mb-8 bg-gradient-to-br from-green-700 to-green-800 rounded-3xl shadow-2xl p-6 md:p-8 text-white">
             <div className="text-center">
@@ -372,6 +506,12 @@ export default function PrayerTimes() {
 
         <Footer />
       </div>
+
+      <audio
+        ref={adhanAudioRef}
+        src="https://www.islamcan.com/audio/adhan/adhan-makkah.mp3"
+        preload="auto"
+      />
     </div>
   );
 }
