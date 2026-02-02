@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { Home, BookOpen, Heart, Moon, Sun } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import InstallPWA from './InstallPWA';
 
 export default function NavigationBar() {
   const { theme, toggleTheme } = useTheme();
@@ -10,13 +11,16 @@ export default function NavigationBar() {
       <div className="absolute inset-0 islamic-pattern opacity-30 dark:opacity-20"></div>
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 relative z-10">
         <div className="flex justify-between items-center h-14 sm:h-16">
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-lg bg-green-800 hover:bg-green-700 text-white transition-all duration-300 shadow-lg hover:scale-105"
-            aria-label="تبديل الوضع"
-          >
-            {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-          </button>
+          <div className="flex items-center gap-2">
+            <InstallPWA />
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg bg-green-800 hover:bg-green-700 text-white transition-all duration-300 shadow-lg hover:scale-105"
+              aria-label="تبديل الوضع"
+            >
+              {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+            </button>
+          </div>
 
           <div className="flex gap-2 sm:gap-4 md:gap-8">
           <NavLink
