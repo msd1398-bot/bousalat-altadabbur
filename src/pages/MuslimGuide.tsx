@@ -190,16 +190,19 @@ export default function MuslimGuide() {
             </div>
           </button>
 
-          <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl p-6 border-2 border-green-800/20 dark:border-green-700/30 hover:border-yellow-600 dark:hover:border-yellow-500 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 group">
+          <button
+            onClick={() => navigate('/quran')}
+            className="w-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl p-6 border-2 border-green-800/20 dark:border-green-700/30 hover:border-yellow-600 dark:hover:border-yellow-500 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 group text-right"
+          >
             <div className="bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900/50 dark:to-emerald-800/50 w-12 h-12 rounded-lg flex items-center justify-center mb-4 group-hover:from-emerald-500 group-hover:to-emerald-600 transition-all">
               <BookOpen className="w-6 h-6 text-emerald-600 dark:text-emerald-400 group-hover:text-white transition-colors" />
             </div>
             <h3 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2" style={{ fontFamily: 'Traditional Arabic, Arial' }}>القرآن الكريم</h3>
-            <p className="text-gray-700 dark:text-gray-300 text-base md:text-lg mb-4" style={{ fontFamily: 'Traditional Arabic, Arial' }}>قراءة واستماع للقرآن الكريم مع التفسير</p>
-            <div className="text-center py-3 bg-gradient-to-r from-yellow-50 to-green-50 dark:from-yellow-950/30 dark:to-green-950/30 rounded-lg border border-yellow-600/20 dark:border-yellow-500/20">
-              <span className="text-yellow-700 dark:text-yellow-500 font-medium" style={{ fontFamily: 'Traditional Arabic, Arial' }}>قريباً</span>
+            <p className="text-gray-700 dark:text-gray-300 text-base md:text-lg mb-4" style={{ fontFamily: 'Traditional Arabic, Arial' }}>قراءة واستماع للقرآن الكريم</p>
+            <div className="text-center py-3 bg-gradient-to-r from-green-600 to-green-800 rounded-lg">
+              <span className="text-white font-medium" style={{ fontFamily: 'Traditional Arabic, Arial' }}>اضغط للبدء</span>
             </div>
-          </div>
+          </button>
 
           <button
             onClick={() => navigate('/hadith')}

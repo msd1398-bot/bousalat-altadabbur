@@ -7,6 +7,7 @@ import Emotions from './pages/Emotions';
 import Hadith from './pages/Hadith';
 import PrayerTimes from './pages/PrayerTimes';
 import Qibla from './pages/Qibla';
+import Quran from './pages/Quran';
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
           <Route path="/hadith" element={<Hadith />} />
           <Route path="/prayer-times" element={<PrayerTimes />} />
           <Route path="/qibla" element={<Qibla />} />
+          <Route path="/quran" element={<Quran />} />
         </Routes>
         <UpdateNotification />
       </div>
