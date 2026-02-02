@@ -1,0 +1,183 @@
+export interface Hadith {
+  id: string;
+  hadith_arabic: string;
+  hadith_english: string;
+  narrator: string;
+  source: string;
+  reference: string;
+  category: string;
+}
+
+export const hadithCategories = [
+  { id: 'all', name: 'الكل', nameEn: 'All' },
+  { id: 'faith', name: 'الإيمان', nameEn: 'Faith' },
+  { id: 'prayer', name: 'الصلاة', nameEn: 'Prayer' },
+  { id: 'manners', name: 'الأخلاق', nameEn: 'Manners' },
+  { id: 'knowledge', name: 'العلم', nameEn: 'Knowledge' },
+  { id: 'charity', name: 'الصدقة', nameEn: 'Charity' },
+  { id: 'dhikr', name: 'الذكر', nameEn: 'Dhikr' },
+  { id: 'patience', name: 'الصبر', nameEn: 'Patience' },
+];
+
+export const hadithData: Omit<Hadith, 'id'>[] = [
+  {
+    hadith_arabic: 'إنما الأعمال بالنيات، وإنما لكل امرئ ما نوى',
+    hadith_english: 'Actions are judged by intentions, and everyone will get what they intended',
+    narrator: 'عمر بن الخطاب',
+    source: 'صحيح البخاري',
+    reference: '1',
+    category: 'faith',
+  },
+  {
+    hadith_arabic: 'من كان يؤمن بالله واليوم الآخر فليقل خيرا أو ليصمت',
+    hadith_english: 'Whoever believes in Allah and the Last Day should speak good or remain silent',
+    narrator: 'أبو هريرة',
+    source: 'صحيح البخاري',
+    reference: '6018',
+    category: 'manners',
+  },
+  {
+    hadith_arabic: 'المؤمن القوي خير وأحب إلى الله من المؤمن الضعيف، وفي كل خير',
+    hadith_english: 'The strong believer is better and more beloved to Allah than the weak believer, while there is good in both',
+    narrator: 'أبو هريرة',
+    source: 'صحيح مسلم',
+    reference: '2664',
+    category: 'faith',
+  },
+  {
+    hadith_arabic: 'من صلى الفجر في جماعة فهو في ذمة الله',
+    hadith_english: 'Whoever prays Fajr in congregation is under Allah\'s protection',
+    narrator: 'جندب بن عبد الله',
+    source: 'صحيح مسلم',
+    reference: '657',
+    category: 'prayer',
+  },
+  {
+    hadith_arabic: 'الدين النصيحة',
+    hadith_english: 'Religion is sincere advice',
+    narrator: 'تميم الداري',
+    source: 'صحيح مسلم',
+    reference: '55',
+    category: 'manners',
+  },
+  {
+    hadith_arabic: 'من سلك طريقا يلتمس فيه علما سهل الله له به طريقا إلى الجنة',
+    hadith_english: 'Whoever travels a path seeking knowledge, Allah will make easy for him a path to Paradise',
+    narrator: 'أبو هريرة',
+    source: 'صحيح مسلم',
+    reference: '2699',
+    category: 'knowledge',
+  },
+  {
+    hadith_arabic: 'الصدقة تطفئ الخطيئة كما يطفئ الماء النار',
+    hadith_english: 'Charity extinguishes sin as water extinguishes fire',
+    narrator: 'معاذ بن جبل',
+    source: 'سنن الترمذي',
+    reference: '2616',
+    category: 'charity',
+  },
+  {
+    hadith_arabic: 'لا يؤمن أحدكم حتى يحب لأخيه ما يحب لنفسه',
+    hadith_english: 'None of you truly believes until he loves for his brother what he loves for himself',
+    narrator: 'أنس بن مالك',
+    source: 'صحيح البخاري',
+    reference: '13',
+    category: 'faith',
+  },
+  {
+    hadith_arabic: 'اتق الله حيثما كنت، وأتبع السيئة الحسنة تمحها، وخالق الناس بخلق حسن',
+    hadith_english: 'Fear Allah wherever you are, follow a bad deed with a good one to erase it, and treat people with good character',
+    narrator: 'أبو ذر الغفاري',
+    source: 'سنن الترمذي',
+    reference: '1987',
+    category: 'manners',
+  },
+  {
+    hadith_arabic: 'من قال سبحان الله وبحمده في يوم مائة مرة حطت خطاياه وإن كانت مثل زبد البحر',
+    hadith_english: 'Whoever says "SubhanAllah wa bihamdihi" 100 times a day, his sins will be forgiven even if they are like the foam of the sea',
+    narrator: 'أبو هريرة',
+    source: 'صحيح البخاري',
+    reference: '6405',
+    category: 'dhikr',
+  },
+  {
+    hadith_arabic: 'عجبا لأمر المؤمن، إن أمره كله خير، وليس ذاك لأحد إلا للمؤمن، إن أصابته سراء شكر فكان خيرا له، وإن أصابته ضراء صبر فكان خيرا له',
+    hadith_english: 'How wonderful is the affair of the believer, for all his affairs are good. If something good happens to him, he is thankful and that is good for him. If something bad happens to him, he is patient and that is good for him',
+    narrator: 'صهيب الرومي',
+    source: 'صحيح مسلم',
+    reference: '2999',
+    category: 'patience',
+  },
+  {
+    hadith_arabic: 'ما من أيام العمل الصالح فيها أحب إلى الله من هذه الأيام - يعني أيام العشر',
+    hadith_english: 'There are no days in which righteous deeds are more beloved to Allah than these ten days (of Dhul-Hijjah)',
+    narrator: 'ابن عباس',
+    source: 'صحيح البخاري',
+    reference: '969',
+    category: 'faith',
+  },
+  {
+    hadith_arabic: 'البر حسن الخلق، والإثم ما حاك في نفسك وكرهت أن يطلع عليه الناس',
+    hadith_english: 'Righteousness is good character, and sin is what troubles your soul and you dislike that people should find out about it',
+    narrator: 'النواس بن سمعان',
+    source: 'صحيح مسلم',
+    reference: '2553',
+    category: 'manners',
+  },
+  {
+    hadith_arabic: 'من قرأ بالآيتين من آخر سورة البقرة في ليلة كفتاه',
+    hadith_english: 'Whoever recites the last two verses of Surah Al-Baqarah at night, they will suffice him',
+    narrator: 'أبو مسعود الأنصاري',
+    source: 'صحيح البخاري',
+    reference: '5009',
+    category: 'prayer',
+  },
+  {
+    hadith_arabic: 'لا يدخل الجنة من كان في قلبه مثقال ذرة من كبر',
+    hadith_english: 'No one who has an atom\'s weight of pride in his heart will enter Paradise',
+    narrator: 'عبد الله بن مسعود',
+    source: 'صحيح مسلم',
+    reference: '91',
+    category: 'manners',
+  },
+  {
+    hadith_arabic: 'طلب العلم فريضة على كل مسلم',
+    hadith_english: 'Seeking knowledge is an obligation upon every Muslim',
+    narrator: 'أنس بن مالك',
+    source: 'سنن ابن ماجه',
+    reference: '224',
+    category: 'knowledge',
+  },
+  {
+    hadith_arabic: 'إن الله جميل يحب الجمال',
+    hadith_english: 'Indeed Allah is Beautiful and He loves beauty',
+    narrator: 'عبد الله بن مسعود',
+    source: 'صحيح مسلم',
+    reference: '91',
+    category: 'manners',
+  },
+  {
+    hadith_arabic: 'كلمتان خفيفتان على اللسان، ثقيلتان في الميزان، حبيبتان إلى الرحمن: سبحان الله وبحمده، سبحان الله العظيم',
+    hadith_english: 'Two words are light on the tongue, heavy on the scales, and beloved to the Most Merciful: SubhanAllah wa bihamdihi, SubhanAllah al-Azeem',
+    narrator: 'أبو هريرة',
+    source: 'صحيح البخاري',
+    reference: '6406',
+    category: 'dhikr',
+  },
+  {
+    hadith_arabic: 'اللهم إني أعوذ بك من العجز والكسل',
+    hadith_english: 'O Allah, I seek refuge in You from incapacity and laziness',
+    narrator: 'أنس بن مالك',
+    source: 'صحيح البخاري',
+    reference: '6367',
+    category: 'prayer',
+  },
+  {
+    hadith_arabic: 'من كانت عنده مظلمة لأخيه من عرضه أو شيء فليتحلله منه اليوم',
+    hadith_english: 'Whoever has wronged his brother concerning his honor or anything else, let him ask for his forgiveness today',
+    narrator: 'أبو هريرة',
+    source: 'صحيح البخاري',
+    reference: '2449',
+    category: 'manners',
+  },
+];

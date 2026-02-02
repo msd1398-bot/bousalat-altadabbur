@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { BookOpen, Clock, Moon, Sun, Compass, Sparkles, HandHeart, Droplets, Shield } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import Footer from '../components/Footer';
 import Azkar from '../components/Azkar';
 import DailyDuas from './DailyDuas';
@@ -11,6 +12,7 @@ type PageType = 'main' | 'morning' | 'evening' | 'duas' | 'tasbih' | 'names' | '
 
 export default function MuslimGuide() {
   const [currentPage, setCurrentPage] = useState<PageType>('main');
+  const navigate = useNavigate();
 
   if (currentPage === 'morning' || currentPage === 'evening') {
     return <Azkar type={currentPage} onBack={() => setCurrentPage('main')} />;
@@ -193,16 +195,19 @@ export default function MuslimGuide() {
             </div>
           </div>
 
-          <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl p-6 border-2 border-green-800/20 dark:border-green-700/30 hover:border-yellow-600 dark:hover:border-yellow-500 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 group">
+          <button
+            onClick={() => navigate('/hadith')}
+            className="w-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl p-6 border-2 border-green-800/20 dark:border-green-700/30 hover:border-yellow-600 dark:hover:border-yellow-500 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 group text-right"
+          >
             <div className="bg-gradient-to-br from-rose-100 to-rose-200 dark:from-rose-900/50 dark:to-rose-800/50 w-12 h-12 rounded-lg flex items-center justify-center mb-4 group-hover:from-rose-500 group-hover:to-rose-600 transition-all">
               <BookOpen className="w-6 h-6 text-rose-600 dark:text-rose-400 group-hover:text-white transition-colors" />
             </div>
             <h3 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2" style={{ fontFamily: 'Traditional Arabic, Arial' }}>الأحاديث النبوية</h3>
             <p className="text-gray-700 dark:text-gray-300 text-base md:text-lg mb-4" style={{ fontFamily: 'Traditional Arabic, Arial' }}>مجموعة من الأحاديث الصحيحة المختارة</p>
-            <div className="text-center py-3 bg-gradient-to-r from-yellow-50 to-green-50 dark:from-yellow-950/30 dark:to-green-950/30 rounded-lg border border-yellow-600/20 dark:border-yellow-500/20">
-              <span className="text-yellow-700 dark:text-yellow-500 font-medium" style={{ fontFamily: 'Traditional Arabic, Arial' }}>قريباً</span>
+            <div className="text-center py-3 bg-gradient-to-r from-green-600 to-green-800 rounded-lg">
+              <span className="text-white font-medium" style={{ fontFamily: 'Traditional Arabic, Arial' }}>اضغط للبدء</span>
             </div>
-          </div>
+          </button>
         </div>
 
         <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg text-center border-2 border-yellow-600/30 dark:border-yellow-500/30">

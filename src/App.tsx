@@ -4,6 +4,7 @@ import UpdateNotification from './components/UpdateNotification';
 import Home from './pages/Home';
 import MuslimGuide from './pages/MuslimGuide';
 import Emotions from './pages/Emotions';
+import Hadith from './pages/Hadith';
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/muslim-guide" element={<MuslimGuide />} />
           <Route path="/emotions" element={<Emotions />} />
+          <Route path="/hadith" element={<Hadith />} />
         </Routes>
         <UpdateNotification />
       </div>
