@@ -5,6 +5,8 @@ import Home from './pages/Home';
 import MuslimGuide from './pages/MuslimGuide';
 import Emotions from './pages/Emotions';
 import Hadith from './pages/Hadith';
+import PrayerTimes from './pages/PrayerTimes';
+import Qibla from './pages/Qibla';
 
 function App() {
   return (
@@ -16,6 +18,8 @@ function App() {
           <Route path="/muslim-guide" element={<MuslimGuide />} />
           <Route path="/emotions" element={<Emotions />} />
           <Route path="/hadith" element={<Hadith />} />
+          <Route path="/prayer-times" element={<PrayerTimes />} />
+          <Route path="/qibla" element={<Qibla />} />
         </Routes>
         <UpdateNotification />
       </div>
