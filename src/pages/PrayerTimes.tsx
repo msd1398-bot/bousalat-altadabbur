@@ -33,12 +33,24 @@ export default function PrayerTimes() {
   });
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [lastPlayedPrayer, setLastPlayedPrayer] = useState<string | null>(null);
+  const [audioLoaded, setAudioLoaded] = useState(false);
   const adhanAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     getLocationAndPrayerTimes();
     requestNotificationPermission();
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+
+    if (adhanAudioRef.current) {
+      adhanAudioRef.current.addEventListener('canplaythrough', () => {
+        setAudioLoaded(true);
+      });
+      adhanAudioRef.current.addEventListener('error', (e) => {
+        console.error('Audio load error:', e);
+        setAudioLoaded(false);
+      });
+    }
+
     return () => clearInterval(timer);
   }, []);
 
@@ -84,6 +96,7 @@ export default function PrayerTimes() {
 
   const playAdhan = (prayer: PrayerTime) => {
     if (adhanAudioRef.current) {
+      adhanAudioRef.current.currentTime = 0;
       adhanAudioRef.current.play().catch(error => {
         console.error('Error playing adhan:', error);
       });
@@ -106,11 +119,25 @@ export default function PrayerTimes() {
     setAdhanEnabled(!adhanEnabled);
   };
 
-  const testAdhan = () => {
-    if (adhanAudioRef.current) {
-      adhanAudioRef.current.play().catch(error => {
-        console.error('Error playing adhan:', error);
-      });
+  const testAdhan = async () => {
+    if (!adhanAudioRef.current) {
+      alert('جاري تحميل الأذان...');
+      return;
+    }
+
+    try {
+      adhanAudioRef.current.currentTime = 0;
+      adhanAudioRef.current.volume = 1.0;
+
+      const playPromise = adhanAudioRef.current.play();
+
+      if (playPromise !== undefined) {
+        await playPromise;
+        console.log('Adhan playing successfully');
+      }
+    } catch (error) {
+      console.error('Error playing adhan:', error);
+      alert('حدث خطأ في تشغيل الأذان. تأكد من السماح بتشغيل الصوت في المتصفح.');
     }
   };
 
@@ -509,8 +536,8 @@ export default function PrayerTimes() {
 
       <audio
         ref={adhanAudioRef}
-        src="https://www.islamcan.com/audio/adhan/adhan-makkah.mp3"
         preload="auto"
+        src="https://server6.mp3quran.net/thubti/Athan/azan.mp3"
       />
     </div>
   );
