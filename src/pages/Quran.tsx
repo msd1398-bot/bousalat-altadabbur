@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { BookOpen, Play, Pause, Volume2, ArrowLeft, Search, X, Bookmark, BookmarkCheck, ZoomIn, ZoomOut, SkipForward, Eye, EyeOff, RotateCcw, Settings } from 'lucide-react';
+import { BookOpen, Play, Pause, Volume2, ArrowLeft, Search, X, Bookmark, BookmarkCheck, ZoomIn, ZoomOut, SkipForward, Eye, EyeOff, RotateCcw, Settings, BookMarked } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Footer from '../components/Footer';
 import { supabase } from '../lib/supabase';
@@ -38,6 +38,7 @@ export default function Quran() {
   const [autoPlay, setAutoPlay] = useState(false);
   const [memorizationMode, setMemorizationMode] = useState(false);
   const [hidePercentage, setHidePercentage] = useState(50);
+  const [mushafMode, setMushafMode] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -348,9 +349,39 @@ export default function Quran() {
 
                   <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
                     <div className="flex items-center justify-between mb-2">
+                      <span className="text-gray-700 dark:text-gray-300" style={{ fontFamily: 'Traditional Arabic, Arial' }}>وضع المصحف</span>
+                      <button
+                        onClick={() => {
+                          setMushafMode(!mushafMode);
+                          if (!mushafMode) {
+                            setMemorizationMode(false);
+                          }
+                        }}
+                        className={`px-4 py-2 rounded-lg transition-colors ${
+                          mushafMode
+                            ? 'bg-amber-600 text-white'
+                            : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                        }`}
+                        style={{ fontFamily: 'Traditional Arabic, Arial' }}
+                      >
+                        {mushafMode ? 'مفعّل' : 'معطّل'}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
+                      عرض صفحة المصحف بالخط العثماني
+                    </p>
+                  </div>
+
+                  <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                    <div className="flex items-center justify-between mb-2">
                       <span className="text-gray-700 dark:text-gray-300" style={{ fontFamily: 'Traditional Arabic, Arial' }}>وضع الحفظ</span>
                       <button
-                        onClick={() => setMemorizationMode(!memorizationMode)}
+                        onClick={() => {
+                          setMemorizationMode(!memorizationMode);
+                          if (!memorizationMode) {
+                            setMushafMode(false);
+                          }
+                        }}
                         className={`px-4 py-2 rounded-lg transition-colors ${
                           memorizationMode
                             ? 'bg-yellow-600 text-white'
@@ -424,6 +455,85 @@ export default function Quran() {
               <p className="text-xl text-gray-700 dark:text-gray-300" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
                 جاري تحميل الآيات...
               </p>
+            </div>
+          ) : mushafMode ? (
+            <div className="mb-8">
+              <div className="bg-gradient-to-b from-amber-50 via-white to-amber-50 dark:from-gray-800 dark:via-gray-900 dark:to-gray-800 rounded-3xl p-8 md:p-12 border-4 border-amber-700/30 dark:border-amber-600/20 shadow-2xl">
+                <div className="max-w-3xl mx-auto">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(251,191,36,0.1)_0%,_transparent_70%)]"></div>
+
+                    <div className="relative text-center leading-loose" style={{ direction: 'rtl' }}>
+                      {ayahs.map((ayah, index) => (
+                        <span key={ayah.number} className="inline">
+                          <span
+                            className={`${getFontSizeClass()} text-gray-900 dark:text-gray-100`}
+                            style={{
+                              fontFamily: 'Traditional Arabic, serif',
+                              lineHeight: '2.8',
+                              letterSpacing: '0.05em'
+                            }}
+                          >
+                            {ayah.text}
+                          </span>
+                          <span
+                            className="inline-flex items-center justify-center mx-2 align-middle"
+                            style={{ verticalAlign: 'middle' }}
+                          >
+                            <span
+                              className="inline-flex items-center justify-center w-8 h-8 text-amber-700 dark:text-amber-500 font-bold text-sm"
+                              style={{
+                                background: 'radial-gradient(circle, rgba(251,191,36,0.2) 0%, transparent 70%)',
+                                border: '2px solid currentColor',
+                                borderRadius: '50%'
+                              }}
+                            >
+                              {ayah.numberInSurah}
+                            </span>
+                          </span>
+                          {index < ayahs.length - 1 && ' '}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="mt-8 pt-6 border-t-2 border-amber-700/20 dark:border-amber-600/20">
+                      <div className="flex flex-wrap gap-2 justify-center">
+                        {ayahs.map((ayah) => {
+                          const isBookmarked = bookmarkedAyahs.has(`${selectedSurah.number}-${ayah.numberInSurah}`);
+                          return (
+                            <div key={ayah.number} className="flex gap-1">
+                              <button
+                                onClick={() => handlePlayAudio(ayah)}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                                  playingAyah === ayah.number
+                                    ? 'bg-green-700 text-white'
+                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-green-600 hover:text-white'
+                                }`}
+                                title={`تشغيل الآية ${ayah.numberInSurah}`}
+                              >
+                                {ayah.numberInSurah}
+                              </button>
+                              {currentUser && (
+                                <button
+                                  onClick={() => toggleBookmark(ayah)}
+                                  className={`p-1.5 rounded-lg transition-all ${
+                                    isBookmarked
+                                      ? 'bg-yellow-600 text-white'
+                                      : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-yellow-500 hover:text-white'
+                                  }`}
+                                  title={isBookmarked ? 'إزالة العلامة' : 'وضع علامة'}
+                                >
+                                  <Bookmark size={14} />
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="space-y-4 mb-8">
