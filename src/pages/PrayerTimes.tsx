@@ -33,30 +33,19 @@ export default function PrayerTimes() {
   });
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [lastPlayedPrayer, setLastPlayedPrayer] = useState<string | null>(null);
-  const [audioLoaded, setAudioLoaded] = useState(false);
   const [currentAudioSource, setCurrentAudioSource] = useState(0);
   const adhanAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const audioSources = [
-    'https://cdn.islamic.network/adhan/azan-makkah.mp3',
-    'https://ia801407.us.archive.org/1/items/adhaan_202010/adhaan.mp3',
-    'https://archive.org/download/adhaan_202010/adhaan.mp3',
+    'https://www.islamcan.com/audio/adhan/azan1.mp3',
+    'https://download.quranicaudio.com/adhan/adhan_makkah.mp3',
+    'https://ia800509.us.archive.org/13/items/makkah_azan/makkah_azan.mp3',
   ];
 
   useEffect(() => {
     getLocationAndPrayerTimes();
     requestNotificationPermission();
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-
-    if (adhanAudioRef.current) {
-      adhanAudioRef.current.addEventListener('canplaythrough', () => {
-        setAudioLoaded(true);
-      });
-      adhanAudioRef.current.addEventListener('error', (e) => {
-        console.error('Audio load error:', e);
-        setAudioLoaded(false);
-      });
-    }
 
     return () => clearInterval(timer);
   }, []);
@@ -101,28 +90,47 @@ export default function PrayerTimes() {
     }
   };
 
-  const playAdhan = async (prayer: PrayerTime) => {
-    if (!adhanAudioRef.current) return;
-
+  const playAdhan = async (_prayer: PrayerTime) => {
     const tryPlayAudio = async (sourceIndex: number): Promise<boolean> => {
       if (sourceIndex >= audioSources.length) {
         return false;
       }
 
-      try {
-        adhanAudioRef.current!.src = audioSources[sourceIndex];
-        adhanAudioRef.current!.currentTime = 0;
-        adhanAudioRef.current!.volume = 1.0;
-        await adhanAudioRef.current!.play();
-        setCurrentAudioSource(sourceIndex);
-        return true;
-      } catch (error) {
-        console.error(`Failed to play from source ${sourceIndex}:`, error);
-        return tryPlayAudio(sourceIndex + 1);
-      }
+      return new Promise((resolve) => {
+        const audio = new Audio();
+        audio.crossOrigin = 'anonymous';
+        audio.volume = 1.0;
+
+        const timeout = setTimeout(() => {
+          audio.pause();
+          resolve(tryPlayAudio(sourceIndex + 1).then(r => r));
+        }, 5000);
+
+        audio.oncanplay = async () => {
+          clearTimeout(timeout);
+          try {
+            await audio.play();
+            setCurrentAudioSource(sourceIndex);
+            resolve(true);
+          } catch {
+            resolve(tryPlayAudio(sourceIndex + 1).then(r => r));
+          }
+        };
+
+        audio.onerror = () => {
+          clearTimeout(timeout);
+          resolve(tryPlayAudio(sourceIndex + 1).then(r => r));
+        };
+
+        audio.src = audioSources[sourceIndex];
+        audio.load();
+      });
     };
 
-    await tryPlayAudio(currentAudioSource);
+    const success = await tryPlayAudio(currentAudioSource);
+    if (!success) {
+      playBeep();
+    }
   };
 
   const showNotification = (prayer: PrayerTime) => {
@@ -141,36 +149,75 @@ export default function PrayerTimes() {
     setAdhanEnabled(!adhanEnabled);
   };
 
-  const testAdhan = async () => {
-    if (!adhanAudioRef.current) {
-      alert('جاري تحميل الأذان...');
-      return;
+  const playBeep = () => {
+    try {
+      const AudioContext = window.AudioContext || (window as unknown as { webkitAudioContext: typeof window.AudioContext }).webkitAudioContext;
+      const ctx = new AudioContext();
+      const frequencies = [440, 528, 396, 440, 528];
+      let time = ctx.currentTime;
+      frequencies.forEach((freq) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = freq;
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0, time);
+        gain.gain.linearRampToValueAtTime(0.3, time + 0.1);
+        gain.gain.linearRampToValueAtTime(0, time + 0.6);
+        osc.start(time);
+        osc.stop(time + 0.6);
+        time += 0.7;
+      });
+    } catch {
+      console.error('Web Audio API not supported');
     }
+  };
 
+  const testAdhan = async () => {
     const tryPlayAudio = async (sourceIndex: number): Promise<boolean> => {
       if (sourceIndex >= audioSources.length) {
         return false;
       }
 
-      try {
-        adhanAudioRef.current!.src = audioSources[sourceIndex];
-        adhanAudioRef.current!.currentTime = 0;
-        adhanAudioRef.current!.volume = 1.0;
+      return new Promise((resolve) => {
+        const audio = new Audio();
+        audio.crossOrigin = 'anonymous';
+        audio.volume = 1.0;
 
-        await adhanAudioRef.current!.play();
-        setCurrentAudioSource(sourceIndex);
-        console.log(`Adhan playing from source ${sourceIndex}`);
-        return true;
-      } catch (error) {
-        console.error(`Failed to play from source ${sourceIndex}:`, error);
-        return tryPlayAudio(sourceIndex + 1);
-      }
+        const timeout = setTimeout(() => {
+          audio.pause();
+          resolve(tryPlayAudio(sourceIndex + 1).then(r => r));
+        }, 5000);
+
+        audio.oncanplay = async () => {
+          clearTimeout(timeout);
+          try {
+            await audio.play();
+            if (adhanAudioRef.current) {
+              adhanAudioRef.current.src = audioSources[sourceIndex];
+            }
+            setCurrentAudioSource(sourceIndex);
+            resolve(true);
+          } catch {
+            resolve(tryPlayAudio(sourceIndex + 1).then(r => r));
+          }
+        };
+
+        audio.onerror = () => {
+          clearTimeout(timeout);
+          resolve(tryPlayAudio(sourceIndex + 1).then(r => r));
+        };
+
+        audio.src = audioSources[sourceIndex];
+        audio.load();
+      });
     };
 
-    const success = await tryPlayAudio(currentAudioSource);
+    const success = await tryPlayAudio(0);
 
     if (!success) {
-      alert('حدث خطأ في تشغيل الأذان. تأكد من الاتصال بالإنترنت والسماح بتشغيل الصوت في المتصفح.');
+      playBeep();
     }
   };
 
@@ -590,12 +637,7 @@ export default function PrayerTimes() {
         <Footer />
       </div>
 
-      <audio
-        ref={adhanAudioRef}
-        preload="auto"
-        src={audioSources[0]}
-        crossOrigin="anonymous"
-      />
+      <audio ref={adhanAudioRef} />
     </div>
   );
 }
