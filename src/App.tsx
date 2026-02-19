@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import NavigationBar from './components/NavigationBar';
 import UpdateNotification from './components/UpdateNotification';
+import InstallPWA from './components/InstallPWA';
 import Home from './pages/Home';
 import MuslimGuide from './pages/MuslimGuide';
 import Emotions from './pages/Emotions';
@@ -24,6 +25,7 @@ function App() {
           <Route path="/quran" element={<Quran />} />
         </Routes>
         <UpdateNotification />
+        <InstallPWA />
       </div>
     </Router>
   );
