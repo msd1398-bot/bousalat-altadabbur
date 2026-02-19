@@ -204,7 +204,7 @@ export default function PrayerTimes() {
     try {
       const ipResponse = await fetch('https://ipapi.co/json/');
       const ipData = await ipResponse.json();
-      await fetchPrayerTimes(ipData.latitude, ipData.longitude);
+      await fetchPrayerTimes(ipData.latitude, ipData.longitude, ipData.city, ipData.country_name);
     } catch (error) {
       console.error('Error fetching location by IP:', error);
       setError('يرجى السماح بالوصول إلى الموقع الجغرافي');
@@ -212,20 +212,43 @@ export default function PrayerTimes() {
     }
   };
 
-  const fetchPrayerTimes = async (latitude: number, longitude: number) => {
+  const fetchCityName = async (latitude: number, longitude: number): Promise<{ city: string; country: string }> => {
     try {
       const response = await fetch(
-        `https://api.aladhan.com/v1/timings?latitude=${latitude}&longitude=${longitude}&method=4`
+        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=ar`,
+        { headers: { 'Accept-Language': 'ar' } }
       );
       const data = await response.json();
+      const city =
+        data.address?.city ||
+        data.address?.town ||
+        data.address?.village ||
+        data.address?.county ||
+        data.address?.state ||
+        'غير معروف';
+      const country = data.address?.country || '';
+      return { city, country };
+    } catch {
+      return { city: 'غير معروف', country: '' };
+    }
+  };
+
+  const fetchPrayerTimes = async (latitude: number, longitude: number, cityName?: string, countryName?: string) => {
+    try {
+      const [prayerResponse, locationData] = await Promise.all([
+        fetch(`https://api.aladhan.com/v1/timings?latitude=${latitude}&longitude=${longitude}&method=4`),
+        cityName ? Promise.resolve({ city: cityName, country: countryName || '' }) : fetchCityName(latitude, longitude),
+      ]);
+
+      const data = await prayerResponse.json();
 
       if (data.code === 200) {
         const timings = data.data.timings;
         const date = data.data.date;
 
         setLocation({
-          city: data.data.meta.timezone.split('/')[1] || 'المدينة',
-          country: 'السعودية',
+          city: locationData.city,
+          country: locationData.country,
           latitude,
           longitude,
         });
@@ -418,7 +441,7 @@ export default function PrayerTimes() {
               <div className="flex items-center justify-center gap-2 text-gray-600 dark:text-gray-300">
                 <MapPin size={20} className="text-green-700 dark:text-green-500" />
                 <span className="text-xl" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
-                  {location?.city}
+                  {location?.city}{location?.country ? ` - ${location.country}` : ''}
                 </span>
               </div>
               <div className="flex items-center justify-center gap-2 text-gray-600 dark:text-gray-300">
