@@ -36,10 +36,11 @@ export default function PrayerTimes() {
   const [currentAudioSource, setCurrentAudioSource] = useState(0);
   const adhanAudioRef = useRef<HTMLAudioElement | null>(null);
 
+  const proxyUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/adhan-proxy`;
   const audioSources = [
+    proxyUrl,
+    'https://server8.mp3quran.net/azan/Adhan-Makkah.mp3',
     'https://www.islamcan.com/audio/adhan/azan1.mp3',
-    'https://download.quranicaudio.com/adhan/adhan_makkah.mp3',
-    'https://ia800509.us.archive.org/13/items/makkah_azan/makkah_azan.mp3',
   ];
 
   useEffect(() => {
@@ -90,47 +91,38 @@ export default function PrayerTimes() {
     }
   };
 
+  const fetchAndPlayAudio = async (url: string): Promise<boolean> => {
+    try {
+      const headers: Record<string, string> = {
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      };
+      const response = await fetch(url, { headers: url === proxyUrl ? headers : {} });
+      if (!response.ok) return false;
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const audio = new Audio(blobUrl);
+      audio.volume = 1.0;
+      await audio.play();
+      audio.onended = () => URL.revokeObjectURL(blobUrl);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   const playAdhan = async (_prayer: PrayerTime) => {
     const tryPlayAudio = async (sourceIndex: number): Promise<boolean> => {
-      if (sourceIndex >= audioSources.length) {
-        return false;
+      if (sourceIndex >= audioSources.length) return false;
+      const success = await fetchAndPlayAudio(audioSources[sourceIndex]);
+      if (success) {
+        setCurrentAudioSource(sourceIndex);
+        return true;
       }
-
-      return new Promise((resolve) => {
-        const audio = new Audio();
-        audio.crossOrigin = 'anonymous';
-        audio.volume = 1.0;
-
-        const timeout = setTimeout(() => {
-          audio.pause();
-          resolve(tryPlayAudio(sourceIndex + 1).then(r => r));
-        }, 5000);
-
-        audio.oncanplay = async () => {
-          clearTimeout(timeout);
-          try {
-            await audio.play();
-            setCurrentAudioSource(sourceIndex);
-            resolve(true);
-          } catch {
-            resolve(tryPlayAudio(sourceIndex + 1).then(r => r));
-          }
-        };
-
-        audio.onerror = () => {
-          clearTimeout(timeout);
-          resolve(tryPlayAudio(sourceIndex + 1).then(r => r));
-        };
-
-        audio.src = audioSources[sourceIndex];
-        audio.load();
-      });
+      return tryPlayAudio(sourceIndex + 1);
     };
 
     const success = await tryPlayAudio(currentAudioSource);
-    if (!success) {
-      playBeep();
-    }
+    if (!success) playBeep();
   };
 
   const showNotification = (prayer: PrayerTime) => {
@@ -176,49 +168,17 @@ export default function PrayerTimes() {
 
   const testAdhan = async () => {
     const tryPlayAudio = async (sourceIndex: number): Promise<boolean> => {
-      if (sourceIndex >= audioSources.length) {
-        return false;
+      if (sourceIndex >= audioSources.length) return false;
+      const success = await fetchAndPlayAudio(audioSources[sourceIndex]);
+      if (success) {
+        setCurrentAudioSource(sourceIndex);
+        return true;
       }
-
-      return new Promise((resolve) => {
-        const audio = new Audio();
-        audio.crossOrigin = 'anonymous';
-        audio.volume = 1.0;
-
-        const timeout = setTimeout(() => {
-          audio.pause();
-          resolve(tryPlayAudio(sourceIndex + 1).then(r => r));
-        }, 5000);
-
-        audio.oncanplay = async () => {
-          clearTimeout(timeout);
-          try {
-            await audio.play();
-            if (adhanAudioRef.current) {
-              adhanAudioRef.current.src = audioSources[sourceIndex];
-            }
-            setCurrentAudioSource(sourceIndex);
-            resolve(true);
-          } catch {
-            resolve(tryPlayAudio(sourceIndex + 1).then(r => r));
-          }
-        };
-
-        audio.onerror = () => {
-          clearTimeout(timeout);
-          resolve(tryPlayAudio(sourceIndex + 1).then(r => r));
-        };
-
-        audio.src = audioSources[sourceIndex];
-        audio.load();
-      });
+      return tryPlayAudio(sourceIndex + 1);
     };
 
     const success = await tryPlayAudio(0);
-
-    if (!success) {
-      playBeep();
-    }
+    if (!success) playBeep();
   };
 
   const getLocationAndPrayerTimes = async () => {
