@@ -1,10 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Emotion } from '../types/emotion';
 import EmotionModal from '../components/EmotionModal';
 import { Sparkles, Search, Shuffle, BookOpen, ArrowUpDown, Heart, Share2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import Footer from '../components/Footer';
-import { useScrollReveal } from '../hooks/useScrollReveal';
 
 type SortOption = 'category' | 'alphabetical' | 'date';
 type FilterOption = 'all' | 'favorites';
@@ -20,47 +19,10 @@ export default function Emotions() {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
-  const headerRef = useScrollReveal();
-  const cardsContainerRef = useRef<HTMLDivElement>(null);
-  const observerRef = useRef<IntersectionObserver | null>(null);
-
-  const observeCards = useCallback(() => {
-    if (!cardsContainerRef.current) return;
-
-    if (observerRef.current) observerRef.current.disconnect();
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const el = entry.target as HTMLElement;
-            const delay = el.dataset.revealDelay || '0';
-            el.style.transitionDelay = `${delay}ms`;
-            el.classList.add('reveal-visible');
-            observer.unobserve(el);
-          }
-        });
-      },
-      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
-    );
-
-    observerRef.current = observer;
-
-    const cards = cardsContainerRef.current.querySelectorAll('[data-reveal]');
-    cards.forEach((el) => observer.observe(el));
-  }, []);
-
   useEffect(() => {
     loadEmotions();
     loadFavorites();
-    return () => { if (observerRef.current) observerRef.current.disconnect(); };
   }, []);
-
-  useEffect(() => {
-    if (!loading && filteredEmotions.length > 0) {
-      requestAnimationFrame(() => observeCards());
-    }
-  }, [filteredEmotions, loading, observeCards]);
 
   useEffect(() => {
     let filtered = emotions;
@@ -101,18 +63,23 @@ export default function Emotions() {
 
   const groupByCategory = (emotionsList: Emotion[]): Record<string, Emotion[]> => {
     const groups: Record<string, Emotion[]> = {};
+
     emotionsList.forEach(emotion => {
       if (!groups[emotion.emotion_category]) {
         groups[emotion.emotion_category] = [];
       }
       groups[emotion.emotion_category].push(emotion);
     });
+
     return groups;
   };
 
   const loadEmotions = async () => {
     try {
-      const { data, error } = await supabase.from('emotions').select('*');
+      const { data, error } = await supabase
+        .from('emotions')
+        .select('*');
+
       if (error) throw error;
       setEmotions(data || []);
     } catch (error) {
@@ -125,7 +92,9 @@ export default function Emotions() {
   const loadFavorites = () => {
     try {
       const saved = localStorage.getItem('favorites');
-      if (saved) setFavorites(new Set(JSON.parse(saved)));
+      if (saved) {
+        setFavorites(new Set(JSON.parse(saved)));
+      }
     } catch (error) {
       console.error('Error loading favorites:', error);
     }
@@ -146,11 +115,17 @@ export default function Emotions() {
 
   const handleShare = async (emotion: Emotion) => {
     const shareText = `${emotion.ayah_text}\n\n${emotion.ayah_reference}\n\nالحالة: ${emotion.emotion_name}`;
+
     if (navigator.share) {
       try {
-        await navigator.share({ title: emotion.emotion_name, text: shareText });
+        await navigator.share({
+          title: emotion.emotion_name,
+          text: shareText,
+        });
       } catch (error) {
-        if ((error as Error).name !== 'AbortError') copyToClipboard(shareText);
+        if ((error as Error).name !== 'AbortError') {
+          copyToClipboard(shareText);
+        }
       }
     } else {
       copyToClipboard(shareText);
@@ -193,70 +168,15 @@ export default function Emotions() {
     );
   }
 
-  const EmotionCard = ({ emotion, index }: { emotion: Emotion; index: number }) => (
-    <div
-      data-reveal="fade-up"
-      data-reveal-delay={`${(index % 6) * 70}`}
-      className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl p-6 border-2 border-green-800/20 dark:border-green-700/30 hover:border-yellow-600 dark:hover:border-yellow-500 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 group text-right relative"
-    >
-      <div className="absolute top-4 left-4 z-10 flex gap-2">
-        <button
-          onClick={(e) => { e.stopPropagation(); toggleFavorite(emotion.id); }}
-          className="p-2 rounded-full bg-white/80 dark:bg-gray-700/80 hover:bg-white dark:hover:bg-gray-600 shadow-md transition-all duration-300 hover:scale-110"
-        >
-          <Heart
-            size={20}
-            className={favorites.has(emotion.id) ? 'text-red-600' : 'text-gray-400 dark:text-gray-500'}
-            fill={favorites.has(emotion.id) ? 'currentColor' : 'none'}
-          />
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); handleShare(emotion); }}
-          className="p-2 rounded-full bg-white/80 dark:bg-gray-700/80 hover:bg-white dark:hover:bg-gray-600 shadow-md transition-all duration-300 hover:scale-110"
-        >
-          <Share2 size={20} className="text-green-700 dark:text-green-500" />
-        </button>
-      </div>
-
-      <button onClick={() => handleEmotionClick(emotion)} className="w-full text-right">
-        <div className="flex items-center justify-between mb-3 pl-20">
-          <div className={`w-12 h-12 rounded-full bg-gradient-to-br from-${emotion.color}-500 to-${emotion.color}-600 flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform`}>
-            <Sparkles size={24} />
-          </div>
-          <h3 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-gray-100" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
-            {emotion.emotion_name}
-          </h3>
-        </div>
-        <div className="text-right text-gray-700 dark:text-gray-300 line-clamp-2 text-base md:text-lg" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
-          {emotion.ayah_text}
-        </div>
-        <div className="mt-3 text-sm md:text-base text-yellow-700 dark:text-yellow-500 font-bold">
-          {emotion.ayah_reference}
-        </div>
-      </button>
-    </div>
-  );
-
   return (
     <div className="min-h-screen islamic-pattern dark:bg-gray-950 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
-        <div
-          className="mb-8 text-center"
-          ref={headerRef as React.RefObject<HTMLDivElement>}
-        >
-          <div
-            data-reveal="zoom-in"
-            data-reveal-delay="0"
-            className="flex justify-center mb-6"
-          >
+        <div className="mb-8 text-center">
+          <div className="flex justify-center mb-6">
             <Sparkles className="text-yellow-600 w-8 h-8 animate-pulse" />
           </div>
 
-          <div
-            data-reveal="fade-down"
-            data-reveal-delay="80"
-            className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10 border-t-4 border-yellow-600 dark:border-yellow-500"
-          >
+          <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10 border-t-4 border-yellow-600 dark:border-yellow-500">
             <div className="mb-8">
               <div className="relative py-6">
                 <div className="absolute inset-0 flex items-center justify-center opacity-10">
@@ -275,49 +195,27 @@ export default function Emotions() {
               </div>
             </div>
 
-            <div
-              data-reveal="zoom-in"
-              data-reveal-delay="150"
-              className="flex justify-center mb-6"
-            >
+            <div className="flex justify-center mb-6">
               <div className="w-20 h-20 bg-gradient-to-br from-green-800 to-green-700 rounded-full flex items-center justify-center shadow-xl border-4 border-yellow-600/30">
                 <BookOpen size={36} className="text-yellow-400" />
               </div>
             </div>
 
-            <h1
-              data-reveal="fade-up"
-              data-reveal-delay="200"
-              className="text-3xl md:text-5xl font-bold text-gray-800 dark:text-gray-100 mb-4"
-              style={{ fontFamily: 'Traditional Arabic, Arial' }}
-            >
+            <h1 className="text-3xl md:text-5xl font-bold text-gray-800 dark:text-gray-100 mb-4" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
               بماذا تشعر الآن؟
             </h1>
 
-            <div
-              data-reveal="fade-up"
-              data-reveal-delay="240"
-              className="flex items-center justify-center gap-3 mb-4"
-            >
+            <div className="flex items-center justify-center gap-3 mb-4">
               <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-yellow-600 dark:via-yellow-500 to-transparent"></div>
               <div className="w-3 h-3 bg-yellow-600 dark:bg-yellow-500 rounded-full"></div>
               <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-yellow-600 dark:via-yellow-500 to-transparent"></div>
             </div>
 
-            <p
-              data-reveal="fade-up"
-              data-reveal-delay="280"
-              className="text-gray-600 dark:text-gray-300 text-xl md:text-2xl mb-6"
-              style={{ fontFamily: 'Traditional Arabic, Arial' }}
-            >
+            <p className="text-gray-600 dark:text-gray-300 text-xl md:text-2xl mb-6" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
               اختر حالتك واكتشف الآية المناسبة
             </p>
 
-            <div
-              data-reveal="fade-up"
-              data-reveal-delay="330"
-              className="flex flex-col gap-3 max-w-2xl mx-auto"
-            >
+            <div className="flex flex-col gap-3 max-w-2xl mx-auto">
               <div className="flex flex-col md:flex-row gap-3">
                 <div className="flex-1 relative">
                   <Search className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
@@ -347,14 +245,22 @@ export default function Emotions() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => setFilterBy('all')}
-                      className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${filterBy === 'all' ? 'bg-red-600 text-white shadow-lg' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+                        filterBy === 'all'
+                          ? 'bg-red-600 text-white shadow-lg'
+                          : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      }`}
                       style={{ fontFamily: 'Traditional Arabic, Arial' }}
                     >
                       الكل
                     </button>
                     <button
                       onClick={() => setFilterBy('favorites')}
-                      className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 flex items-center gap-2 ${filterBy === 'favorites' ? 'bg-red-600 text-white shadow-lg' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 flex items-center gap-2 ${
+                        filterBy === 'favorites'
+                          ? 'bg-red-600 text-white shadow-lg'
+                          : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      }`}
                       style={{ fontFamily: 'Traditional Arabic, Arial' }}
                     >
                       <Heart size={16} fill={filterBy === 'favorites' ? 'currentColor' : 'none'} />
@@ -366,16 +272,39 @@ export default function Emotions() {
                 <div className="flex items-center gap-3 justify-center">
                   <ArrowUpDown className="text-gray-500 dark:text-gray-400" size={18} />
                   <div className="flex gap-2">
-                    {(['category', 'alphabetical', 'date'] as SortOption[]).map((opt) => (
-                      <button
-                        key={opt}
-                        onClick={() => setSortBy(opt)}
-                        className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${sortBy === opt ? 'bg-green-700 text-white shadow-lg' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
-                        style={{ fontFamily: 'Traditional Arabic, Arial' }}
-                      >
-                        {opt === 'category' ? 'حسب الفئة' : opt === 'alphabetical' ? 'أبجديًا' : 'حسب التاريخ'}
-                      </button>
-                    ))}
+                    <button
+                      onClick={() => setSortBy('category')}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+                        sortBy === 'category'
+                          ? 'bg-green-700 text-white shadow-lg'
+                          : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      }`}
+                      style={{ fontFamily: 'Traditional Arabic, Arial' }}
+                    >
+                      حسب الفئة
+                    </button>
+                    <button
+                      onClick={() => setSortBy('alphabetical')}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+                        sortBy === 'alphabetical'
+                          ? 'bg-green-700 text-white shadow-lg'
+                          : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      }`}
+                      style={{ fontFamily: 'Traditional Arabic, Arial' }}
+                    >
+                      أبجديًا
+                    </button>
+                    <button
+                      onClick={() => setSortBy('date')}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+                        sortBy === 'date'
+                          ? 'bg-green-700 text-white shadow-lg'
+                          : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      }`}
+                      style={{ fontFamily: 'Traditional Arabic, Arial' }}
+                    >
+                      حسب التاريخ
+                    </button>
                   </div>
                 </div>
               </div>
@@ -390,14 +319,10 @@ export default function Emotions() {
             </p>
           </div>
         ) : sortBy === 'category' ? (
-          <div className="space-y-8" ref={cardsContainerRef}>
-            {Object.entries(groupByCategory(filteredEmotions)).map(([category, categoryEmotions], catIndex) => (
+          <div className="space-y-8">
+            {Object.entries(groupByCategory(filteredEmotions)).map(([category, categoryEmotions]) => (
               <div key={category}>
-                <div
-                  data-reveal="fade-right"
-                  data-reveal-delay={`${catIndex * 50}`}
-                  className="mb-4 flex items-center gap-3"
-                >
+                <div className="mb-4 flex items-center gap-3">
                   <div className="flex-1 h-px bg-gradient-to-l from-yellow-600 dark:from-yellow-500 to-transparent"></div>
                   <h2 className="text-2xl font-bold text-green-800 dark:text-green-400 px-4" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
                     {category}
@@ -406,25 +331,76 @@ export default function Emotions() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {categoryEmotions.map((emotion, index) => (
-                    <EmotionCard key={emotion.id} emotion={emotion} index={index} />
+                  {categoryEmotions.map((emotion) => (
+                    <div
+                      key={emotion.id}
+                      className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl p-6 border-2 border-green-800/20 dark:border-green-700/30 hover:border-yellow-600 dark:hover:border-yellow-500 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 group text-right relative"
+                    >
+                      <div className="absolute top-4 left-4 z-10 flex gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFavorite(emotion.id);
+                          }}
+                          className="p-2 rounded-full bg-white/80 dark:bg-gray-700/80 hover:bg-white dark:hover:bg-gray-600 shadow-md transition-all duration-300 hover:scale-110"
+                        >
+                          <Heart
+                            size={20}
+                            className={favorites.has(emotion.id) ? 'text-red-600' : 'text-gray-400 dark:text-gray-500'}
+                            fill={favorites.has(emotion.id) ? 'currentColor' : 'none'}
+                          />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleShare(emotion);
+                          }}
+                          className="p-2 rounded-full bg-white/80 dark:bg-gray-700/80 hover:bg-white dark:hover:bg-gray-600 shadow-md transition-all duration-300 hover:scale-110"
+                        >
+                          <Share2 size={20} className="text-green-700 dark:text-green-500" />
+                        </button>
+                      </div>
+
+                      <button
+                        onClick={() => handleEmotionClick(emotion)}
+                        className="w-full text-right"
+                      >
+                        <div className="flex items-center justify-between mb-3 pl-20">
+                          <div className={`w-12 h-12 rounded-full bg-gradient-to-br from-${emotion.color}-500 to-${emotion.color}-600 flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform`}>
+                            <Sparkles size={24} />
+                          </div>
+                          <h3 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-gray-100" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
+                            {emotion.emotion_name}
+                          </h3>
+                        </div>
+
+                        <div className="text-right text-gray-700 dark:text-gray-300 line-clamp-2 text-base md:text-lg" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
+                          {emotion.ayah_text}
+                        </div>
+
+                        <div className="mt-3 text-sm md:text-base text-yellow-700 dark:text-yellow-500 font-bold">
+                          {emotion.ayah_reference}
+                        </div>
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" ref={cardsContainerRef}>
-            {filteredEmotions.map((emotion, index) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredEmotions.map((emotion) => (
               <div
                 key={emotion.id}
-                data-reveal="fade-up"
-                data-reveal-delay={`${(index % 6) * 70}`}
                 className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl p-6 border-2 border-green-800/20 dark:border-green-700/30 hover:border-yellow-600 dark:hover:border-yellow-500 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 group text-right relative"
               >
                 <div className="absolute top-4 left-4 z-10 flex gap-2">
                   <button
-                    onClick={(e) => { e.stopPropagation(); toggleFavorite(emotion.id); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFavorite(emotion.id);
+                    }}
                     className="p-2 rounded-full bg-white/80 dark:bg-gray-700/80 hover:bg-white dark:hover:bg-gray-600 shadow-md transition-all duration-300 hover:scale-110"
                   >
                     <Heart
@@ -434,14 +410,20 @@ export default function Emotions() {
                     />
                   </button>
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleShare(emotion); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleShare(emotion);
+                    }}
                     className="p-2 rounded-full bg-white/80 dark:bg-gray-700/80 hover:bg-white dark:hover:bg-gray-600 shadow-md transition-all duration-300 hover:scale-110"
                   >
                     <Share2 size={20} className="text-green-700 dark:text-green-500" />
                   </button>
                 </div>
 
-                <button onClick={() => handleEmotionClick(emotion)} className="w-full text-right">
+                <button
+                  onClick={() => handleEmotionClick(emotion)}
+                  className="w-full text-right"
+                >
                   <div className="flex items-center justify-between mb-3 pl-20">
                     <div className={`w-12 h-12 rounded-full bg-gradient-to-br from-${emotion.color}-500 to-${emotion.color}-600 flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform`}>
                       <Sparkles size={24} />
@@ -469,11 +451,7 @@ export default function Emotions() {
         )}
 
         <div className="mt-12 text-center">
-          <div
-            data-reveal="flip-up"
-            data-reveal-delay="0"
-            className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl px-8 py-4 shadow-lg border border-yellow-600/20 dark:border-yellow-500/20 inline-block"
-          >
+          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl px-8 py-4 shadow-lg border border-yellow-600/20 dark:border-yellow-500/20 inline-block">
             <p className="text-gray-700 dark:text-gray-200 text-2xl md:text-3xl font-semibold mb-2" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
               وَمَن يَتَّقِ اللَّهَ يَجْعَل لَّهُ مَخْرَجًا
             </p>
