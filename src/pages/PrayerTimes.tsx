@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Clock, MapPin, Sunrise, Sun, Sunset, Moon, Calendar, RefreshCw, ArrowLeft, Volume2, VolumeX, Bell } from 'lucide-react';
+import { Clock, MapPin, Sunrise, Sun, Sunset, Moon, Calendar, RefreshCw, ArrowLeft, Volume2, VolumeX, Bell, StopCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Footer from '../components/Footer';
 
@@ -34,7 +34,10 @@ export default function PrayerTimes() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [lastPlayedPrayer, setLastPlayedPrayer] = useState<string | null>(null);
   const [currentAudioSource, setCurrentAudioSource] = useState(0);
+  const [isAdhanPlaying, setIsAdhanPlaying] = useState(false);
   const adhanAudioRef = useRef<HTMLAudioElement | null>(null);
+  const audioBlobUrlRef = useRef<string | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
 
   const proxyUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/adhan-proxy`;
   const audioSources = [
@@ -48,7 +51,20 @@ export default function PrayerTimes() {
     requestNotificationPermission();
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
 
-    return () => clearInterval(timer);
+    const stopOnInteraction = () => stopAdhan();
+    window.addEventListener('click', stopOnInteraction);
+    window.addEventListener('touchstart', stopOnInteraction);
+    window.addEventListener('keydown', stopOnInteraction);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) stopAdhan();
+    });
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('click', stopOnInteraction);
+      window.removeEventListener('touchstart', stopOnInteraction);
+      window.removeEventListener('keydown', stopOnInteraction);
+    };
   }, []);
 
   useEffect(() => {
@@ -91,6 +107,23 @@ export default function PrayerTimes() {
     }
   };
 
+  const stopAdhan = () => {
+    if (adhanAudioRef.current) {
+      adhanAudioRef.current.pause();
+      adhanAudioRef.current.currentTime = 0;
+      adhanAudioRef.current = null;
+    }
+    if (audioBlobUrlRef.current) {
+      URL.revokeObjectURL(audioBlobUrlRef.current);
+      audioBlobUrlRef.current = null;
+    }
+    if (audioCtxRef.current) {
+      audioCtxRef.current.close();
+      audioCtxRef.current = null;
+    }
+    setIsAdhanPlaying(false);
+  };
+
   const fetchAndPlayAudio = async (url: string): Promise<boolean> => {
     try {
       const headers: Record<string, string> = {
@@ -100,10 +133,18 @@ export default function PrayerTimes() {
       if (!response.ok) return false;
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
+      audioBlobUrlRef.current = blobUrl;
       const audio = new Audio(blobUrl);
       audio.volume = 1.0;
+      adhanAudioRef.current = audio;
+      setIsAdhanPlaying(true);
       await audio.play();
-      audio.onended = () => URL.revokeObjectURL(blobUrl);
+      audio.onended = () => {
+        URL.revokeObjectURL(blobUrl);
+        audioBlobUrlRef.current = null;
+        adhanAudioRef.current = null;
+        setIsAdhanPlaying(false);
+      };
       return true;
     } catch {
       return false;
@@ -145,8 +186,11 @@ export default function PrayerTimes() {
     try {
       const AudioContext = window.AudioContext || (window as unknown as { webkitAudioContext: typeof window.AudioContext }).webkitAudioContext;
       const ctx = new AudioContext();
+      audioCtxRef.current = ctx;
+      setIsAdhanPlaying(true);
       const frequencies = [440, 528, 396, 440, 528];
       let time = ctx.currentTime;
+      const lastStop = time + frequencies.length * 0.7;
       frequencies.forEach((freq) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -161,6 +205,10 @@ export default function PrayerTimes() {
         osc.stop(time + 0.6);
         time += 0.7;
       });
+      setTimeout(() => {
+        audioCtxRef.current = null;
+        setIsAdhanPlaying(false);
+      }, (lastStop - ctx.currentTime) * 1000 + 100);
     } catch {
       console.error('Web Audio API not supported');
     }
@@ -480,7 +528,7 @@ export default function PrayerTimes() {
 
             <div className="flex items-center gap-3">
               <button
-                onClick={testAdhan}
+                onClick={(e) => { e.stopPropagation(); testAdhan(); }}
                 className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl font-medium transition-all duration-300 hover:shadow-lg transform hover:scale-105 flex items-center gap-2"
                 style={{ fontFamily: 'Traditional Arabic, Arial' }}
               >
@@ -488,8 +536,19 @@ export default function PrayerTimes() {
                 <span>تجربة</span>
               </button>
 
+              {isAdhanPlaying && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); stopAdhan(); }}
+                  className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-xl font-medium transition-all duration-300 hover:shadow-lg transform hover:scale-105 flex items-center gap-2 animate-pulse"
+                  style={{ fontFamily: 'Traditional Arabic, Arial' }}
+                >
+                  <StopCircle size={18} />
+                  <span>إيقاف</span>
+                </button>
+              )}
+
               <button
-                onClick={toggleAdhan}
+                onClick={(e) => { e.stopPropagation(); toggleAdhan(); }}
                 className={`px-6 py-3 rounded-xl font-bold transition-all duration-300 transform hover:scale-105 flex items-center gap-2 ${
                   adhanEnabled
                     ? 'bg-gradient-to-r from-green-600 to-green-700 text-white shadow-lg shadow-green-600/30'
