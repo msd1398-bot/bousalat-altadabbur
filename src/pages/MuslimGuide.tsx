@@ -220,7 +220,7 @@ export default function MuslimGuide() {
         </div>
 
         <a
-          href="https://ihsaan.org.sa"
+          href="https://ehsan.sa/"
           target="_blank"
           rel="noopener noreferrer"
           className="block mb-8 group"
