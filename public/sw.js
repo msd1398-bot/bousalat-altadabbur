@@ -1,4 +1,4 @@
-const VERSION = 'v2.0.0';
+const VERSION = 'v2.1.0';
 const STATIC_CACHE = `muslim-guide-static-${VERSION}`;
 const DYNAMIC_CACHE = `muslim-guide-dynamic-${VERSION}`;
 const RUNTIME_CACHE = `muslim-guide-runtime-${VERSION}`;
