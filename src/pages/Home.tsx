@@ -1,12 +1,19 @@
 import { BookOpen, Heart, Compass, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Footer from '../components/Footer';
+import { useScrollReveal } from '../hooks/useScrollReveal';
 
 export default function Home() {
+  const revealRef = useScrollReveal();
+
   return (
-    <div className="min-h-screen islamic-pattern dark:bg-gray-950 p-4 md:p-8">
+    <div className="min-h-screen islamic-pattern dark:bg-gray-950 p-4 md:p-8" ref={revealRef as React.RefObject<HTMLDivElement>}>
       <div className="max-w-5xl mx-auto">
-        <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 md:p-12 border-t-4 border-yellow-600 dark:border-yellow-500 mb-8">
+        <div
+          data-reveal="fade-down"
+          data-reveal-delay="0"
+          className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 md:p-12 border-t-4 border-yellow-600 dark:border-yellow-500 mb-8"
+        >
           <div className="mb-8">
             <div className="relative py-6">
               <div className="absolute inset-0 flex items-center justify-center opacity-10">
@@ -25,7 +32,11 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="text-center mb-12">
+          <div
+            data-reveal="zoom-in"
+            data-reveal-delay="100"
+            className="text-center mb-12"
+          >
             <div className="relative inline-block mb-6">
               <div className="absolute inset-0 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full blur-xl opacity-50 animate-pulse"></div>
               <div className="relative w-20 h-20 bg-gradient-to-br from-green-800 to-green-700 rounded-full flex items-center justify-center shadow-xl border-4 border-yellow-600/30">
@@ -51,6 +62,8 @@ export default function Home() {
           <div className="grid md:grid-cols-2 gap-6 mb-8">
             <Link
               to="/muslim-guide"
+              data-reveal="fade-right"
+              data-reveal-delay="200"
               className="group bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl p-8 border-2 border-green-800/20 dark:border-green-700/30 hover:border-yellow-600 dark:hover:border-yellow-500 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 text-right relative overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -69,6 +82,8 @@ export default function Home() {
 
             <Link
               to="/emotions"
+              data-reveal="fade-left"
+              data-reveal-delay="350"
               className="group bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl p-8 border-2 border-green-800/20 dark:border-green-700/30 hover:border-yellow-600 dark:hover:border-yellow-500 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 text-right relative overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-rose-50 to-red-50 dark:from-rose-950/30 dark:to-red-950/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -86,7 +101,11 @@ export default function Home() {
             </Link>
           </div>
 
-          <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-2xl p-8 text-center border-2 border-yellow-600/30 dark:border-yellow-500/30">
+          <div
+            data-reveal="flip-up"
+            data-reveal-delay="450"
+            className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-2xl p-8 text-center border-2 border-yellow-600/30 dark:border-yellow-500/30"
+          >
             <div className="mb-4">
               <Sparkles className="w-8 h-8 text-yellow-600 dark:text-yellow-500 mx-auto" />
             </div>
@@ -97,7 +116,9 @@ export default function Home() {
           </div>
         </div>
 
-        <Footer />
+        <div data-reveal="fade-up" data-reveal-delay="500">
+          <Footer />
+        </div>
       </div>
     </div>
   );
