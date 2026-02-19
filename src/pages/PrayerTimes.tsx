@@ -96,7 +96,8 @@ export default function PrayerTimes() {
     for (const prayer of prayerTimes) {
       if (prayer.name === 'Sunrise') continue;
 
-      const prayerTimeStr = formatTime(prayer.time);
+      const [h, m] = prayer.time.split(':');
+      const prayerTimeStr = `${h.padStart(2, '0')}:${m.padStart(2, '0')}`;
 
       if (currentTimeStr === prayerTimeStr && lastPlayedPrayer !== `${prayer.name}-${currentTimeStr}`) {
         playAdhan(prayer);
@@ -406,8 +407,12 @@ export default function PrayerTimes() {
   };
 
   const formatTime = (time: string) => {
-    const [hours, minutes] = time.split(':');
-    return `${hours}:${minutes}`;
+    const [hoursStr, minutesStr] = time.split(':');
+    let hours = parseInt(hoursStr, 10);
+    const minutes = minutesStr.padStart(2, '0');
+    const period = hours >= 12 ? 'م' : 'ص';
+    hours = hours % 12 || 12;
+    return `${hours}:${minutes} ${period}`;
   };
 
   if (loading) {
@@ -506,7 +511,7 @@ export default function PrayerTimes() {
                 </span>
               </div>
               <p className="text-3xl font-bold text-green-800 dark:text-green-400">
-                {currentTime.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                {currentTime.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
               </p>
             </div>
           </div>
