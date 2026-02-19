@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, Clock, Moon, Sun, Compass, Sparkles, HandHeart, Droplets, Shield } from 'lucide-react';
+import { BookOpen, Clock, Moon, Sun, Compass, Sparkles, HandHeart, Droplets, Shield, Heart, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Footer from '../components/Footer';
 import Azkar from '../components/Azkar';
@@ -218,6 +218,41 @@ export default function MuslimGuide() {
             </div>
           </button>
         </div>
+
+        <a
+          href="https://ihsaan.org.sa"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block mb-8 group"
+        >
+          <div className="relative overflow-hidden bg-gradient-to-r from-green-800 via-green-700 to-green-800 rounded-2xl p-6 md:p-8 shadow-2xl border border-yellow-600/30 hover:border-yellow-500/60 transition-all duration-300 hover:shadow-yellow-600/20 hover:shadow-2xl">
+            <div className="absolute inset-0 opacity-10">
+              <div className="absolute top-0 left-0 w-48 h-48 bg-yellow-400 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
+              <div className="absolute bottom-0 right-0 w-48 h-48 bg-yellow-400 rounded-full blur-3xl translate-x-1/2 translate-y-1/2"></div>
+            </div>
+            <div className="relative flex flex-col md:flex-row items-center gap-6 text-right">
+              <div className="flex-shrink-0 w-16 h-16 bg-yellow-500/20 border-2 border-yellow-500/40 rounded-2xl flex items-center justify-center group-hover:bg-yellow-500/30 transition-all duration-300">
+                <Heart className="w-8 h-8 text-yellow-400" />
+              </div>
+              <div className="flex-1 text-center md:text-right">
+                <div className="flex items-center justify-center md:justify-end gap-2 mb-1">
+                  <span className="text-yellow-400 text-sm font-medium tracking-wide" style={{ fontFamily: 'Traditional Arabic, Arial' }}>تبرع وتصدق</span>
+                  <div className="w-8 h-0.5 bg-yellow-500/50"></div>
+                </div>
+                <h3 className="text-2xl md:text-3xl font-bold text-white mb-2" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
+                  الصدقة - جمعية إحسان الخيرية
+                </h3>
+                <p className="text-green-100/80 text-base md:text-lg leading-relaxed" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
+                  قال النبي ﷺ: "الصدقة تطفئ الخطيئة كما يطفئ الماء النار" — تبرع الآن عبر جمعية إحسان الخيرية وكن سبباً في نشر الخير
+                </p>
+              </div>
+              <div className="flex-shrink-0 flex items-center gap-2 bg-yellow-500 hover:bg-yellow-400 text-green-900 font-bold px-5 py-3 rounded-xl transition-all duration-300 group-hover:scale-105 shadow-lg">
+                <span style={{ fontFamily: 'Traditional Arabic, Arial' }}>تبرع الآن</span>
+                <ExternalLink className="w-4 h-4" />
+              </div>
+            </div>
+          </div>
+        </a>
 
         <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg text-center border-2 border-yellow-600/30 dark:border-yellow-500/30">
           <Sparkles className="w-8 h-8 text-yellow-600 dark:text-yellow-500 mx-auto mb-4" />
