@@ -36,18 +36,27 @@ export default function Azkar({ type, onBack }: AzkarProps) {
         .eq('type', type)
         .order('order_number', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
-      if (data) {
-        setAzkarList(data);
+      if (data && Array.isArray(data) && data.length > 0) {
+        setAzkarList(data as AzkarItem[]);
         const initialCounts: { [key: string]: number } = {};
-        data.forEach(item => {
+        data.forEach((item: AzkarItem) => {
           initialCounts[item.id] = 0;
         });
         setCompletedCounts(initialCounts);
+      } else {
+        console.warn(`No azkar found for type: ${type}`);
+        setAzkarList([]);
+        setCompletedCounts({});
       }
     } catch (error) {
       console.error('Error fetching azkar:', error);
+      setAzkarList([]);
+      setCompletedCounts({});
     } finally {
       setLoading(false);
     }
@@ -88,6 +97,36 @@ export default function Azkar({ type, onBack }: AzkarProps) {
           <p className="text-gray-600 dark:text-gray-300 text-xl" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
             جاري التحميل...
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (azkarList.length === 0) {
+    return (
+      <div className="min-h-screen islamic-pattern dark:bg-gray-950 p-4 md:p-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10 border-t-4 border-yellow-600 dark:border-yellow-500">
+            <button
+              onClick={onBack}
+              className="flex items-center gap-2 text-green-800 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 mb-6 transition-colors group"
+            >
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              <span className="font-medium" style={{ fontFamily: 'Traditional Arabic, Arial' }}>رجوع</span>
+            </button>
+            <div className="text-center py-12">
+              <p className="text-2xl md:text-3xl text-gray-600 dark:text-gray-300 mb-4" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
+                عذراً، لم نتمكن من تحميل الأذكار
+              </p>
+              <button
+                onClick={fetchAzkar}
+                className="px-6 py-3 bg-green-700 hover:bg-green-800 text-white rounded-xl font-bold transition-colors"
+                style={{ fontFamily: 'Traditional Arabic, Arial' }}
+              >
+                حاول مجدداً
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
