@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { BookOpen, Clock, Moon, Sun, Compass, Sparkles, HandHeart, Droplets, Shield, Heart, ExternalLink } from 'lucide-react';
+import { useState, lazy, Suspense } from 'react';
+import { BookOpen, Clock, Moon, Sun, Compass, Sparkles, HandHeart, Droplets, Shield, Heart, ExternalLink, Gem } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Footer from '../components/Footer';
 import Azkar from '../components/Azkar';
@@ -9,7 +9,10 @@ import AllahNames from './AllahNames';
 import Ruqyah from './Ruqyah';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 
-type PageType = 'main' | 'morning' | 'evening' | 'duas' | 'tasbih' | 'names' | 'ruqyah';
+// Loaded only when opened: holds 165 cards of data + the Quran font.
+const QuranGems = lazy(() => import('./QuranGems'));
+
+type PageType = 'main' | 'morning' | 'evening' | 'duas' | 'tasbih' | 'names' | 'ruqyah' | 'gems';
 
 const menuItems = [
   { id: 'prayer-times' as const, navigate: true, label: 'أوقات الصلاة', desc: 'معرفة أوقات الصلوات الخمس بدقة حسب موقعك', icon: Clock, bg: 'from-blue-100 to-blue-200 dark:from-blue-900/50 dark:to-blue-800/50', hoverBg: 'group-hover:from-blue-500 group-hover:to-blue-600', iconColor: 'text-blue-600 dark:text-blue-400' },
@@ -21,6 +24,7 @@ const menuItems = [
   { id: 'ruqyah' as const, navigate: false, label: 'الرقية الشرعية', desc: 'آيات قرآنية وأدعية للشفاء والحماية', icon: Shield, bg: 'from-emerald-100 to-green-200 dark:from-emerald-900/50 dark:to-green-800/50', hoverBg: 'group-hover:from-emerald-500 group-hover:to-green-600', iconColor: 'text-emerald-600 dark:text-emerald-400' },
   { id: 'qibla' as const, navigate: true, label: 'اتجاه القبلة', desc: 'تحديد اتجاه القبلة الشريفة بدقة', icon: Compass, bg: 'from-teal-100 to-teal-200 dark:from-teal-900/50 dark:to-teal-800/50', hoverBg: 'group-hover:from-teal-500 group-hover:to-teal-600', iconColor: 'text-teal-600 dark:text-teal-400' },
   { id: 'quran' as const, navigate: true, label: 'القرآن الكريم', desc: 'قراءة واستماع للقرآن الكريم', icon: BookOpen, bg: 'from-emerald-100 to-emerald-200 dark:from-emerald-900/50 dark:to-emerald-800/50', hoverBg: 'group-hover:from-emerald-500 group-hover:to-emerald-600', iconColor: 'text-emerald-600 dark:text-emerald-400' },
+  { id: 'gems' as const, navigate: false, label: 'فرائد قرآنية', desc: 'معاني كلمات القرآن والفروق بينها، وفوائد من آياته', icon: Gem, bg: 'from-yellow-100 to-amber-200 dark:from-yellow-900/50 dark:to-amber-800/50', hoverBg: 'group-hover:from-yellow-500 group-hover:to-amber-600', iconColor: 'text-yellow-700 dark:text-yellow-400' },
   { id: 'hadith' as const, navigate: true, label: 'الأحاديث النبوية', desc: 'مجموعة من الأحاديث الصحيحة المختارة', icon: BookOpen, bg: 'from-rose-100 to-rose-200 dark:from-rose-900/50 dark:to-rose-800/50', hoverBg: 'group-hover:from-rose-500 group-hover:to-rose-600', iconColor: 'text-rose-600 dark:text-rose-400' },
 ];
 
@@ -47,6 +51,20 @@ export default function MuslimGuide() {
 
   if (currentPage === 'ruqyah') {
     return <Ruqyah onBack={() => setCurrentPage('main')} />;
+  }
+
+  if (currentPage === 'gems') {
+    return (
+      <Suspense
+        fallback={
+          <div className="min-h-screen islamic-pattern dark:bg-gray-950 flex items-center justify-center">
+            <p className="text-xl text-gray-600 dark:text-gray-300" style={{ fontFamily: 'Traditional Arabic, Arial' }}>جاري التحميل...</p>
+          </div>
+        }
+      >
+        <QuranGems onBack={() => setCurrentPage('main')} />
+      </Suspense>
+    );
   }
 
   const handleClick = (item: typeof menuItems[0]) => {
