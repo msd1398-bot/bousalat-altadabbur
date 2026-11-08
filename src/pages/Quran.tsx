@@ -3,6 +3,14 @@ import { BookOpen, Play, Pause, Volume2, ArrowLeft, Search, X, Bookmark, Bookmar
 import { useNavigate } from 'react-router-dom';
 import Footer from '../components/Footer';
 import { supabase } from '../lib/supabase';
+import '@fontsource/amiri-quran/400.css';
+
+// Quran text and font ship with the app: phones without an Uthmani-capable
+// font (e.g. some Honor/Huawei models) showed empty boxes instead of marks.
+const QURAN_FONT = '"Amiri Quran", "Traditional Arabic", serif';
+
+// Ayahs before each surah (Hafs count) — gives the global ayah number used for audio.
+const AYAH_OFFSETS = [0,7,293,493,669,789,954,1160,1235,1364,1473,1596,1707,1750,1802,1901,2029,2140,2250,2348,2483,2595,2673,2791,2855,2932,3159,3252,3340,3409,3469,3503,3533,3606,3660,3705,3788,3970,4058,4133,4218,4272,4325,4414,4473,4510,4545,4583,4612,4630,4675,4735,4784,4846,4901,4979,5075,5104,5126,5150,5163,5177,5188,5199,5217,5229,5241,5271,5323,5375,5419,5447,5475,5495,5551,5591,5622,5672,5712,5758,5800,5829,5848,5884,5909,5931,5948,5967,5993,6023,6043,6058,6079,6090,6098,6106,6125,6130,6138,6146,6157,6168,6176,6179,6188,6193,6197,6204,6207,6213,6216,6221,6225,6230];
 
 interface Surah {
   number: number;
@@ -139,29 +147,37 @@ export default function Quran() {
   };
 
   const fetchSurahAyahs = async (surahNumber: number) => {
+    setLoadingAyahs(true);
+    // Each source is optional except the local text: if the online API is slow or down,
+    // the surah still shows (audio/tafsir just stay empty).
+    const api = (path: string) =>
+      fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}${path}`)
+        .then((r) => r.json())
+        .then((d) => (d?.code === 200 ? (d.data.ayahs as { number: number; text: string; audio?: string }[]) : null))
+        .catch(() => null);
     try {
-      setLoadingAyahs(true);
-      const [textResponse, audioResponse, translationResponse, tafsirResponse] = await Promise.all([
-        fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}`),
-        fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/ar.alafasy`),
-        fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/en.sahih`),
-        fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/ar.muyassar`),
+      const [localText, audioAyahs, translationAyahs, tafsirAyahs] = await Promise.all([
+        // Uthmani text from QuranEnc (public/quran/N.json) — no basmala inside ayah 1.
+        fetch(`/quran/${surahNumber}.json`).then((r) => (r.ok ? (r.json() as Promise<string[]>) : null)).catch(() => null),
+        api('/ar.alafasy'),
+        api('/en.sahih'),
+        api('/ar.muyassar'),
       ]);
-
-      const textData = await textResponse.json();
-      const audioData = await audioResponse.json();
-      const translationData = await translationResponse.json();
-      const tafsirData = await tafsirResponse.json();
-
-      if (textData.code === 200 && audioData.code === 200) {
-        const ayahsWithData = textData.data.ayahs.map((ayah: Ayah, index: number) => ({
-          ...ayah,
-          audio: audioData.data.ayahs[index].audio,
-          translation: translationData.data?.ayahs[index]?.text || '',
-          tafsir: tafsirData.data?.ayahs[index]?.text || '',
-        }));
-        setAyahs(ayahsWithData);
-      }
+      if (!localText) throw new Error('local Quran text missing');
+      const firstGlobal = AYAH_OFFSETS[surahNumber - 1] + 1;
+      setAyahs(
+        localText.map((text, index) => {
+          const number = firstGlobal + index;
+          return {
+            number,
+            numberInSurah: index + 1,
+            text,
+            audio: audioAyahs?.[index]?.audio || `https://cdn.islamic.network/quran/audio/128/ar.alafasy/${number}.mp3`,
+            translation: translationAyahs?.[index]?.text || '',
+            tafsir: tafsirAyahs?.[index]?.text || '',
+          };
+        })
+      );
     } catch (error) {
       console.error('Error fetching ayahs:', error);
     } finally {
@@ -441,7 +457,7 @@ export default function Quran() {
 
               {selectedSurah.number !== 1 && selectedSurah.number !== 9 && (
                 <div className="text-center mb-8 py-6 bg-gradient-to-r from-green-50 to-teal-50 dark:from-green-900/20 dark:to-teal-900/20 rounded-2xl">
-                  <p className="text-3xl md:text-4xl text-gray-800 dark:text-gray-200" style={{ fontFamily: 'Traditional Arabic, serif' }}>
+                  <p className="text-3xl md:text-4xl text-gray-800 dark:text-gray-200" style={{ fontFamily: QURAN_FONT, lineHeight: 2.2 }}>
                     بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
                   </p>
                 </div>
@@ -469,9 +485,8 @@ export default function Quran() {
                           <span
                             className={`${getFontSizeClass()} text-gray-900 dark:text-gray-100`}
                             style={{
-                              fontFamily: 'Traditional Arabic, serif',
-                              lineHeight: '2.8',
-                              letterSpacing: '0.05em'
+                              fontFamily: QURAN_FONT,
+                              lineHeight: '2.8'
                             }}
                           >
                             {ayah.text}
@@ -584,7 +599,7 @@ export default function Quran() {
 
                         <p
                           className={`${getFontSizeClass()} leading-loose text-gray-800 dark:text-gray-100 text-right mb-4`}
-                          style={{ fontFamily: 'Traditional Arabic, serif', lineHeight: '2.5' }}
+                          style={{ fontFamily: QURAN_FONT, lineHeight: '2.5' }}
                         >
                           {hideAyahWords(ayah.text)}
                         </p>

@@ -1,0 +1,3 @@
+Uthmani Quran text (Hafs) from The Noble Qur'an Encyclopedia (QuranEnc.com), via the quran-json package v3.1.2.
+Each file N.json = array of ayah texts of surah N, in order. Open tanween marks are mapped to U+08F0-08F2 for the Amiri Quran font.
+Do not edit by hand.
