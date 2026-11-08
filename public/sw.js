@@ -1,4 +1,4 @@
-const VERSION = 'v2.2.0';
+const VERSION = 'v2.3.0';
 const STATIC_CACHE = `muslim-guide-static-${VERSION}`;
 const DYNAMIC_CACHE = `muslim-guide-dynamic-${VERSION}`;
 const RUNTIME_CACHE = `muslim-guide-runtime-${VERSION}`;
@@ -103,7 +103,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   // JS/CSS/Images - Cache first (for better performance)
-  if (request.url.match(/\.(js|css|png|jpg|jpeg|svg|gif|webp|woff|woff2)$/)) {
+  if (request.url.match(/\.(js|css|png|jpg|jpeg|svg|gif|webp|woff|woff2|ttf)$/)) {
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
         if (cachedResponse) {
