@@ -2,6 +2,8 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
+// Start listening for the browser's install offer before React renders.
+import './lib/installPrompt';
 import { ThemeProvider } from './context/ThemeContext';
 
 createRoot(document.getElementById('root')!).render(
