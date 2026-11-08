@@ -3,32 +3,84 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>دليل المسلم - مشاعري</title>
-    <meta name="description" content="تطبيق لإدارة المشاعر والأذكار الإسلامية" />
+    <title>بوصلة التدبّر</title>
+    <meta name="description" content="رفيقك في رحلة التدبّر والتأمل: أذكار، أحاديث صحيحة، فرائد قرآنية، ومواقيت الصلاة" />
 
     <!-- PWA Meta Tags -->
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#10b981" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="دليل المسلم" />
+    <meta name="apple-mobile-web-app-title" content="بوصلة التدبّر" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
     <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="دليل المسلم - مشاعري" />
-    <meta property="og:description" content="تطبيق لإدارة المشاعر والأذكار الإسلامية" />
+    <meta property="og:title" content="بوصلة التدبّر" />
+    <meta property="og:description" content="رفيقك في رحلة التدبّر والتأمل: أذكار، أحاديث صحيحة، فرائد قرآنية، ومواقيت الصلاة" />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="/icon.svg" />
+    <meta property="og:image" content="/icon-512.png" />
 
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="دليل المسلم - مشاعري" />
-    <meta name="twitter:description" content="تطبيق لإدارة المشاعر والأذكار الإسلامية" />
-    <meta name="twitter:image" content="/icon.svg" />
+    <meta name="twitter:title" content="بوصلة التدبّر" />
+    <meta name="twitter:description" content="رفيقك في رحلة التدبّر والتأمل: أذكار، أحاديث صحيحة، فرائد قرآنية، ومواقيت الصلاة" />
+    <meta name="twitter:image" content="/icon-512.png" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Shown until React renders (replaced automatically) -->
+      <style>
+        .boot{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:radial-gradient(circle at 50% 42%,#1f7a46 0%,#14532d 55%,#0a2e1a 100%);font-family:'Traditional Arabic',Arial,sans-serif}
+        .boot-logo{width:210px;height:210px;animation:boot-pulse 1.8s ease-in-out infinite}
+        .boot-name{color:#fde68a;font-size:30px;font-weight:700;margin:0}
+        .boot-sub{color:#bbf7d0;opacity:.8;font-size:17px;margin:0}
+        @keyframes boot-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+        @media (prefers-reduced-motion:reduce){.boot-logo{animation:none}}
+      </style>
+      <div class="boot">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="boot-logo" aria-hidden="true">
+  <defs>
+    <radialGradient id="boot-bg" cx="50%" cy="42%" r="70%">
+      <stop offset="0%" stop-color="#1f7a46"/><stop offset="60%" stop-color="#14532d"/><stop offset="100%" stop-color="#0a2e1a"/>
+    </radialGradient>
+    <linearGradient id="boot-gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fde68a"/><stop offset="55%" stop-color="#eab308"/><stop offset="100%" stop-color="#b45309"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(256 256)">
+  <rect x="-75.0" y="-75.0" width="150.0" height="150.0" transform="rotate(0) scale(1.0)" fill="none" stroke="url(#boot-gold)" stroke-width="9.0" stroke-linejoin="round" opacity="0.95"/>
+  <rect x="-75.0" y="-75.0" width="150.0" height="150.0" transform="rotate(45) scale(1.0)" fill="none" stroke="url(#boot-gold)" stroke-width="9.0" stroke-linejoin="round" opacity="0.95"/>
+  <circle r="122.0" fill="none" stroke="url(#boot-gold)" stroke-width="5.0" opacity="0.55"/>
+  <line x1="132.0" y1="0.0" x2="146.0" y2="0.0" stroke="url(#boot-gold)" stroke-width="4.0" stroke-linecap="round" opacity="0.8"/>
+  <line x1="122.0" y1="50.5" x2="128.4" y2="53.2" stroke="url(#boot-gold)" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+  <line x1="93.3" y1="93.3" x2="103.2" y2="103.2" stroke="url(#boot-gold)" stroke-width="4.0" stroke-linecap="round" opacity="0.8"/>
+  <line x1="50.5" y1="122.0" x2="53.2" y2="128.4" stroke="url(#boot-gold)" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+  <line x1="0.0" y1="132.0" x2="0.0" y2="146.0" stroke="url(#boot-gold)" stroke-width="4.0" stroke-linecap="round" opacity="0.8"/>
+  <line x1="-50.5" y1="122.0" x2="-53.2" y2="128.4" stroke="url(#boot-gold)" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+  <line x1="-93.3" y1="93.3" x2="-103.2" y2="103.2" stroke="url(#boot-gold)" stroke-width="4.0" stroke-linecap="round" opacity="0.8"/>
+  <line x1="-122.0" y1="50.5" x2="-128.4" y2="53.2" stroke="url(#boot-gold)" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+  <line x1="-132.0" y1="0.0" x2="-146.0" y2="0.0" stroke="url(#boot-gold)" stroke-width="4.0" stroke-linecap="round" opacity="0.8"/>
+  <line x1="-122.0" y1="-50.5" x2="-128.4" y2="-53.2" stroke="url(#boot-gold)" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+  <line x1="-93.3" y1="-93.3" x2="-103.2" y2="-103.2" stroke="url(#boot-gold)" stroke-width="4.0" stroke-linecap="round" opacity="0.8"/>
+  <line x1="-50.5" y1="-122.0" x2="-53.2" y2="-128.4" stroke="url(#boot-gold)" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+  <line x1="-0.0" y1="-132.0" x2="-0.0" y2="-146.0" stroke="url(#boot-gold)" stroke-width="4.0" stroke-linecap="round" opacity="0.8"/>
+  <line x1="50.5" y1="-122.0" x2="53.2" y2="-128.4" stroke="url(#boot-gold)" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+  <line x1="93.3" y1="-93.3" x2="103.2" y2="-103.2" stroke="url(#boot-gold)" stroke-width="4.0" stroke-linecap="round" opacity="0.8"/>
+  <line x1="122.0" y1="-50.5" x2="128.4" y2="-53.2" stroke="url(#boot-gold)" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+  <polygon points="-84.0,0 0,-12.6 84.0,0 0,12.6" fill="#d9f99d" opacity="0.18"/>
+  <polygon points="0,-150.0 30.0,0 0,0" fill="#fde68a"/>
+  <polygon points="0,-150.0 -30.0,0 0,0" fill="#eab308"/>
+  <polygon points="0,150.0 30.0,0 0,0" fill="#f8fafc" opacity="0.92"/>
+  <polygon points="0,150.0 -30.0,0 0,0" fill="#cbd5e1" opacity="0.92"/>
+  <circle r="17.0" fill="#14532d" stroke="url(#boot-gold)" stroke-width="6.0"/>
+  </g>
+</svg>
+        <p class="boot-name">بوصلة التدبّر</p>
+        <p class="boot-sub">رفيقك في رحلة التدبّر والتأمل</p>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
       // Register Service Worker
