@@ -1,0 +1,4 @@
+meta.json — page/juz/hizb/sajda boundaries of the Madinah Mushaf (Hafs), from
+Tanzil.net Quran Metadata v1.0 (Copyright (C) 2008-2009 Tanzil.info, License: Creative Commons Attribution 3.0),
+taken from TarteelAI/quran-assets metadata/quran-data.js. Surah names and basmala from the QuranEnc text.
+Validated: 114 surahs with matching ayah counts, 604 pages, 30 juz, 240 hizb quarters, 15 sajdas.
