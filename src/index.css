@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* King Fahd Complex Hafs font (free to use; must not be modified). Loaded only when Quran text is shown. */
+@font-face {
+  font-family: 'KFGQPC Hafs';
+  src: url('/fonts/kfgqpc/UthmanicHafs1Ver18.ttf') format('truetype');
+  font-display: swap;
+}
+
 @layer base {
   body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
