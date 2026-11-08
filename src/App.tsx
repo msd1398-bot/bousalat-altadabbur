@@ -8,10 +8,10 @@ import MuslimGuide from './pages/MuslimGuide';
 import Emotions from './pages/Emotions';
 import PrayerTimes from './pages/PrayerTimes';
 import Qibla from './pages/Qibla';
-import Quran from './pages/Quran';
 
 // Loaded only when opened: ~300 hadiths with explanations + the Amiri font.
 const Hadith = lazy(() => import('./pages/Hadith'));
+const Quran = lazy(() => import('./pages/Quran'));
 
 const pageFallback = (
   <div className="min-h-screen islamic-pattern dark:bg-gray-950 flex items-center justify-center">
@@ -31,7 +31,7 @@ function App() {
           <Route path="/hadith" element={<Suspense fallback={pageFallback}><Hadith /></Suspense>} />
           <Route path="/prayer-times" element={<PrayerTimes />} />
           <Route path="/qibla" element={<Qibla />} />
-          <Route path="/quran" element={<Quran />} />
+          <Route path="/quran" element={<Suspense fallback={pageFallback}><Quran /></Suspense>} />
         </Routes>
         <UpdateNotification />
         <InstallPWA />

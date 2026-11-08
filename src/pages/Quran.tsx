@@ -1,773 +1,650 @@
-import { useState, useEffect, useRef } from 'react';
-import { BookOpen, Play, Pause, Volume2, ArrowLeft, Search, X, Bookmark, BookmarkCheck, ZoomIn, ZoomOut, SkipForward, Eye, EyeOff, RotateCcw, Settings, BookMarked } from 'lucide-react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  ArrowLeft, BookOpen, Bookmark, BookmarkCheck, ChevronLeft, ChevronRight, Copy, Check, Minus, Play, Plus, Search, Square, X,
+} from 'lucide-react';
 import Footer from '../components/Footer';
-import { supabase } from '../lib/supabase';
+import {
+  TOTAL_PAGES, audioUrl, fromGlobal, hizbOf, isSajda, juzOf, loadMeta, loadPage, normalizeArabic, pageOf, toArabicDigits,
+  type MushafMeta, type PageAyah,
+} from '../lib/mushaf';
 
-// Quran text and font ship with the app: phones without an Uthmani-capable
-// font (e.g. some Honor/Huawei models) showed empty boxes instead of marks.
-// KFGQPC HAFS = the Madinah Mushaf typeface; the QuranEnc text is encoded for it.
+const UI_FONT = { fontFamily: 'Traditional Arabic, Arial' };
 const QURAN_FONT = '"KFGQPC Hafs", serif';
+const LAST_PAGE_KEY = 'mushaf-last-page';
+const BOOKMARKS_KEY = 'mushaf-bookmarks';
+const SCALE_KEY = 'mushaf-font-scale';
 
-// Ayahs before each surah (Hafs count) — gives the global ayah number used for audio.
-const AYAH_OFFSETS = [0,7,293,493,669,789,954,1160,1235,1364,1473,1596,1707,1750,1802,1901,2029,2140,2250,2348,2483,2595,2673,2791,2855,2932,3159,3252,3340,3409,3469,3503,3533,3606,3660,3705,3788,3970,4058,4133,4218,4272,4325,4414,4473,4510,4545,4583,4612,4630,4675,4735,4784,4846,4901,4979,5075,5104,5126,5150,5163,5177,5188,5199,5217,5229,5241,5271,5323,5375,5419,5447,5475,5495,5551,5591,5622,5672,5712,5758,5800,5829,5848,5884,5909,5931,5948,5967,5993,6023,6043,6058,6079,6090,6098,6106,6125,6130,6138,6146,6157,6168,6176,6179,6188,6193,6197,6204,6207,6213,6216,6221,6225,6230];
-
-interface Surah {
-  number: number;
-  name: string;
-  englishName: string;
-  englishNameTranslation: string;
-  numberOfAyahs: number;
-  revelationType: string;
+function readStore<T>(key: string, fallback: T): T {
+  try {
+    const v = localStorage.getItem(key);
+    return v === null ? fallback : (JSON.parse(v) as T);
+  } catch {
+    return fallback;
+  }
+}
+function writeStore(key: string, value: unknown) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* private mode — keep in memory only */
+  }
 }
 
-interface Ayah {
-  number: number;
-  text: string;
-  numberInSurah: number;
-  audio: string;
-  translation?: string;
-  tafsir?: string;
+const WIDE_QUERY = '(min-width: 720px)';
+
+/** Two facing pages when the screen is wide (unfolded Fold, tablet, desktop). */
+function useWideScreen() {
+  const [wide, setWide] = useState(() => window.matchMedia(WIDE_QUERY).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(WIDE_QUERY);
+    const on = () => setWide(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  return wide;
+}
+
+/** Pages visible together: odd page on the right, even on the left (printed Madinah Mushaf). */
+function spreadOf(page: number, wide: boolean): number[] {
+  if (!wide) return [page];
+  const right = page % 2 === 1 ? page : page - 1;
+  return right + 1 <= TOTAL_PAGES ? [right, right + 1] : [right];
+}
+
+type AyahRef = Pick<PageAyah, 'surah' | 'ayah' | 'global' | 'text'>;
+
+function SurahBanner({ name }: { name: string }) {
+  return (
+    <span className="block my-3 mx-auto w-full max-w-md">
+      <span className="relative block rounded-xl border-[3px] border-double border-[var(--mushaf-gold)] bg-[var(--mushaf-banner)] px-6 py-1.5 text-center">
+        <span className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 rotate-45 border-2 border-[var(--mushaf-gold)]" />
+        <span className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 rotate-45 border-2 border-[var(--mushaf-gold)]" />
+        <span className="text-xl font-bold text-[var(--mushaf-ink)]" style={UI_FONT}>
+          سورة {name}
+        </span>
+      </span>
+    </span>
+  );
+}
+
+function MushafPage({
+  meta, page, fontScale, selected, playing, onAyahTap,
+}: {
+  meta: MushafMeta;
+  page: number;
+  fontScale: number;
+  selected: number | null;
+  playing: number | null;
+  onAyahTap: (a: AyahRef) => void;
+}) {
+  const [ayahs, setAyahs] = useState<PageAyah[] | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    setAyahs(null);
+    setFailed(false);
+    loadPage(meta, page)
+      .then((a) => live && setAyahs(a))
+      .catch(() => live && setFailed(true));
+    return () => {
+      live = false;
+    };
+  }, [meta, page]);
+
+  const first = ayahs?.[0];
+
+  return (
+    <article
+      className="flex flex-col rounded-2xl border border-[var(--mushaf-line-strong)] bg-[var(--mushaf-paper)] shadow-xl p-1.5 md:p-2.5 min-w-0"
+      aria-label={`صفحة ${page}`}
+    >
+      <div className="flex flex-col flex-1 rounded-xl border-[3px] border-double border-[var(--mushaf-gold)] px-3 md:px-5 py-2">
+        <header
+          className="flex justify-between items-center gap-2 text-sm text-[var(--mushaf-muted)] border-b border-[var(--mushaf-line)] pb-1 mb-1"
+          style={UI_FONT}
+        >
+          <span className="truncate">{first && `سورة ${meta.surahs[first.surah - 1].name}`}</span>
+          {first && (
+            <span className="shrink-0">
+              الجزء {toArabicDigits(juzOf(meta, first.surah, first.ayah))} · الحزب {toArabicDigits(hizbOf(meta, first.surah, first.ayah))}
+            </span>
+          )}
+        </header>
+
+        <div className="flex-1 py-2">
+          {failed && (
+            <p className="text-center py-16 text-[var(--mushaf-muted)]" style={UI_FONT}>
+              تعذّر تحميل الصفحة. تأكد من الاتصال وحاول مرة ثانية.
+            </p>
+          )}
+          {!ayahs && !failed && <div className="h-[60vh] animate-pulse rounded-lg bg-[var(--mushaf-skeleton)]" />}
+          {ayahs && (
+            <p
+              className="text-[var(--mushaf-ink)]"
+              style={{
+                fontFamily: QURAN_FONT,
+                fontSize: `calc(clamp(1.35rem, 1.05rem + 1.1vw, 1.85rem) * ${fontScale})`,
+                lineHeight: 2.15,
+                textAlign: 'justify',
+                textAlignLast: 'center',
+              }}
+            >
+              {ayahs.map((a) => (
+                <Fragment key={a.global}>
+                  {a.ayah === 1 && (
+                    <span className="block" style={{ textAlignLast: 'auto' }}>
+                      <SurahBanner name={meta.surahs[a.surah - 1].name} />
+                      {a.surah !== 1 && a.surah !== 9 && <span className="block text-center my-1">{meta.basmala}</span>}
+                    </span>
+                  )}
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => onAyahTap(a)}
+                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onAyahTap(a)}
+                    className={`cursor-pointer rounded-md transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--mushaf-gold)] ${
+                      playing === a.global
+                        ? 'bg-[var(--mushaf-active)]'
+                        : selected === a.global
+                          ? 'bg-[var(--mushaf-select)]'
+                          : 'hover:bg-[var(--mushaf-select)]'
+                    }`}
+                  >
+                    {a.text}
+                    {isSajda(meta, a.surah, a.ayah) ? ' ۩' : ''} {toArabicDigits(a.ayah)}{' '}
+                  </span>
+                </Fragment>
+              ))}
+            </p>
+          )}
+        </div>
+
+        <footer className="text-center text-[var(--mushaf-muted)] border-t border-[var(--mushaf-line)] pt-1" style={UI_FONT}>
+          {toArabicDigits(page)}
+        </footer>
+      </div>
+    </article>
+  );
+}
+
+function AyahSheet({
+  meta, ayah, onClose, onPlayFrom,
+}: {
+  meta: MushafMeta;
+  ayah: AyahRef;
+  onClose: () => void;
+  onPlayFrom: (global: number) => void;
+}) {
+  const [tafsir, setTafsir] = useState<string | null>(null);
+  const [tafsirState, setTafsirState] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [copied, setCopied] = useState(false);
+  const name = meta.surahs[ayah.surah - 1].name;
+
+  useEffect(() => {
+    setTafsir(null);
+    setTafsirState('idle');
+  }, [ayah.global]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const loadTafsir = async () => {
+    setTafsirState('loading');
+    try {
+      const r = await fetch(`https://api.alquran.cloud/v1/ayah/${ayah.surah}:${ayah.ayah}/ar.muyassar`);
+      const d = await r.json();
+      if (d?.code !== 200) throw new Error('tafsir');
+      setTafsir(d.data.text);
+      setTafsirState('idle');
+    } catch {
+      setTafsirState('error');
+    }
+  };
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(`﴿${ayah.text}﴾ [${name}: ${ayah.ayah}]`);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* clipboard blocked */
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[55] flex items-end justify-center bg-black/40" onClick={onClose}>
+      <div
+        className="w-full max-w-2xl max-h-[75vh] overflow-y-auto rounded-t-3xl bg-white dark:bg-gray-900 p-5 shadow-2xl"
+        style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label={`سورة ${name} الآية ${ayah.ayah}`}
+      >
+        <div className="flex items-center justify-between mb-3">
+          <p className="font-bold text-lg text-green-800 dark:text-green-400" style={UI_FONT}>
+            سورة {name} · الآية {toArabicDigits(ayah.ayah)}
+          </p>
+          <button onClick={onClose} aria-label="إغلاق" className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500">
+            <X size={20} />
+          </button>
+        </div>
+        <p className="text-2xl text-gray-800 dark:text-gray-100 mb-4" style={{ fontFamily: QURAN_FONT, lineHeight: 2.1 }}>
+          {ayah.text} {toArabicDigits(ayah.ayah)}
+        </p>
+        <div className="grid grid-cols-3 gap-2 mb-4" style={UI_FONT}>
+          <button onClick={() => onPlayFrom(ayah.global)} className="flex flex-col items-center gap-1 py-3 rounded-xl bg-green-700 text-white font-bold">
+            <Play size={20} /> استمع من هنا
+          </button>
+          <button
+            onClick={loadTafsir}
+            className="flex flex-col items-center gap-1 py-3 rounded-xl bg-green-50 dark:bg-green-950/40 text-green-800 dark:text-green-300 font-bold"
+          >
+            <BookOpen size={20} /> التفسير الميسر
+          </button>
+          <button onClick={copy} className="flex flex-col items-center gap-1 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-bold">
+            {copied ? <Check size={20} /> : <Copy size={20} />} {copied ? 'تم النسخ' : 'نسخ'}
+          </button>
+        </div>
+        {tafsirState === 'loading' && <p className="text-gray-500" style={UI_FONT}>جاري تحميل التفسير...</p>}
+        {tafsirState === 'error' && (
+          <p className="text-red-600 dark:text-red-400" style={UI_FONT}>
+            تعذّر تحميل التفسير، يحتاج اتصال بالإنترنت.
+          </p>
+        )}
+        {tafsir && (
+          <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 p-4">
+            <p className="text-sm font-bold text-amber-800 dark:text-amber-400 mb-1" style={UI_FONT}>
+              التفسير الميسر
+            </p>
+            <p className="text-lg leading-loose text-gray-800 dark:text-gray-200" style={UI_FONT}>
+              {tafsir}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function Quran() {
   const navigate = useNavigate();
-  const [surahs, setSurahs] = useState<Surah[]>([]);
-  const [selectedSurah, setSelectedSurah] = useState<Surah | null>(null);
-  const [ayahs, setAyahs] = useState<Ayah[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingAyahs, setLoadingAyahs] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [playingAyah, setPlayingAyah] = useState<number | null>(null);
-  const [bookmarkedAyahs, setBookmarkedAyahs] = useState<Set<string>>(new Set());
-  const [showTranslation, setShowTranslation] = useState(false);
-  const [showTafsir, setShowTafsir] = useState(false);
-  const [fontSize, setFontSize] = useState(2);
-  const [autoPlay, setAutoPlay] = useState(false);
-  const [memorizationMode, setMemorizationMode] = useState(false);
-  const [hidePercentage, setHidePercentage] = useState(50);
-  const [mushafMode, setMushafMode] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const wide = useWideScreen();
+  const [meta, setMeta] = useState<MushafMeta | null>(null);
+  const [metaError, setMetaError] = useState(false);
+  const [view, setView] = useState<'index' | 'reader'>('index');
+  const [page, setPage] = useState<number>(() => readStore(LAST_PAGE_KEY, 1));
+  const [bookmarks, setBookmarks] = useState<number[]>(() => readStore(BOOKMARKS_KEY, []));
+  const [fontScale, setFontScale] = useState<number>(() => readStore(SCALE_KEY, 1));
+  const [tab, setTab] = useState<'surahs' | 'juz'>('surahs');
+  const [search, setSearch] = useState('');
+  const [goTo, setGoTo] = useState('');
+  const [selected, setSelected] = useState<AyahRef | null>(null);
+  const [playing, setPlaying] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const touchX = useRef<number | null>(null);
 
   useEffect(() => {
-    fetchSurahs();
-    checkUser();
+    loadMeta().then(setMeta).catch(() => setMetaError(true));
   }, []);
 
+  useEffect(() => writeStore(LAST_PAGE_KEY, page), [page]);
+  useEffect(() => writeStore(BOOKMARKS_KEY, bookmarks), [bookmarks]);
+  useEffect(() => writeStore(SCALE_KEY, fontScale), [fontScale]);
+
+  const spread = useMemo(() => spreadOf(page, wide), [page, wide]);
+  const step = wide ? 2 : 1;
+
+  const goPage = useCallback((p: number) => {
+    setPage(Math.min(TOTAL_PAGES, Math.max(1, p)));
+    setSelected(null);
+    window.scrollTo({ top: 0 });
+  }, []);
+  const next = useCallback(() => goPage(spread[spread.length - 1] + 1), [goPage, spread]);
+  const prev = useCallback(() => goPage(spread[0] - step), [goPage, spread, step]);
+
+  const openAt = (p: number) => {
+    goPage(p);
+    setView('reader');
+  };
+
+  // Keyboard: ← next page, → previous page (Arabic book direction)
   useEffect(() => {
-    if (currentUser && selectedSurah) {
-      loadBookmarks();
-      saveReadingProgress();
-    }
-  }, [currentUser, selectedSurah]);
+    if (view !== 'reader') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') next();
+      if (e.key === 'ArrowRight') prev();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [view, next, prev]);
 
-  const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setCurrentUser(user);
-  };
+  // ---- Audio: continuous recitation, turning pages as it goes ----
+  const stopAudio = useCallback(() => {
+    audioRef.current?.pause();
+    audioRef.current = null;
+    setPlaying(null);
+  }, []);
 
-  const loadBookmarks = async () => {
-    if (!currentUser) return;
-
-    const { data } = await supabase
-      .from('quran_bookmarks')
-      .select('*')
-      .eq('user_id', currentUser.id);
-
-    if (data) {
-      const bookmarkedSet = new Set(data.map(b => `${b.surah_number}-${b.ayah_number}`));
-      setBookmarkedAyahs(bookmarkedSet);
-    }
-  };
-
-  const saveReadingProgress = async () => {
-    if (!currentUser || !selectedSurah) return;
-
-    await supabase
-      .from('quran_reading_progress')
-      .upsert({
-        user_id: currentUser.id,
-        surah_number: selectedSurah.number,
-        ayah_number: 1,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'user_id'
-      });
-  };
-
-  const toggleBookmark = async (ayah: Ayah) => {
-    if (!currentUser || !selectedSurah) return;
-
-    const bookmarkKey = `${selectedSurah.number}-${ayah.numberInSurah}`;
-
-    if (bookmarkedAyahs.has(bookmarkKey)) {
-      await supabase
-        .from('quran_bookmarks')
-        .delete()
-        .eq('user_id', currentUser.id)
-        .eq('surah_number', selectedSurah.number)
-        .eq('ayah_number', ayah.numberInSurah);
-
-      const newSet = new Set(bookmarkedAyahs);
-      newSet.delete(bookmarkKey);
-      setBookmarkedAyahs(newSet);
-    } else {
-      await supabase
-        .from('quran_bookmarks')
-        .insert({
-          user_id: currentUser.id,
-          surah_number: selectedSurah.number,
-          ayah_number: ayah.numberInSurah,
-          surah_name: selectedSurah.name,
-          ayah_text: ayah.text
-        });
-
-      const newSet = new Set(bookmarkedAyahs);
-      newSet.add(bookmarkKey);
-      setBookmarkedAyahs(newSet);
-    }
-  };
-
-  const fetchSurahs = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('https://api.alquran.cloud/v1/surah');
-      const data = await response.json();
-
-      if (data.code === 200) {
-        setSurahs(data.data);
-      }
-    } catch (error) {
-      console.error('Error fetching surahs:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchSurahAyahs = async (surahNumber: number) => {
-    setLoadingAyahs(true);
-    // Each source is optional except the local text: if the online API is slow or down,
-    // the surah still shows (audio/tafsir just stay empty).
-    const api = (path: string) =>
-      fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}${path}`)
-        .then((r) => r.json())
-        .then((d) => (d?.code === 200 ? (d.data.ayahs as { number: number; text: string; audio?: string }[]) : null))
-        .catch(() => null);
-    try {
-      const [localText, audioAyahs, translationAyahs, tafsirAyahs] = await Promise.all([
-        // Uthmani text from QuranEnc (public/quran/N.json) — no basmala inside ayah 1.
-        fetch(`/quran/${surahNumber}.json`).then((r) => (r.ok ? (r.json() as Promise<string[]>) : null)).catch(() => null),
-        api('/ar.alafasy'),
-        api('/en.sahih'),
-        api('/ar.muyassar'),
-      ]);
-      if (!localText) throw new Error('local Quran text missing');
-      const firstGlobal = AYAH_OFFSETS[surahNumber - 1] + 1;
-      setAyahs(
-        localText.map((text, index) => {
-          const number = firstGlobal + index;
-          return {
-            number,
-            numberInSurah: index + 1,
-            text,
-            audio: audioAyahs?.[index]?.audio || `https://cdn.islamic.network/quran/audio/128/ar.alafasy/${number}.mp3`,
-            translation: translationAyahs?.[index]?.text || '',
-            tafsir: tafsirAyahs?.[index]?.text || '',
-          };
-        })
-      );
-    } catch (error) {
-      console.error('Error fetching ayahs:', error);
-    } finally {
-      setLoadingAyahs(false);
-    }
-  };
-
-  const handleSurahClick = (surah: Surah) => {
-    setSelectedSurah(surah);
-    fetchSurahAyahs(surah.number);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handlePlayAudio = (ayah: Ayah) => {
-    if (playingAyah === ayah.number) {
+  const playFrom = useCallback(
+    (global: number) => {
+      if (!meta) return;
       audioRef.current?.pause();
-      setPlayingAyah(null);
-    } else {
-      if (audioRef.current) {
-        audioRef.current.src = ayah.audio;
-        audioRef.current.play();
-        setPlayingAyah(ayah.number);
-      }
-    }
-  };
-
-  const handleAudioEnded = () => {
-    if (autoPlay && playingAyah) {
-      const currentIndex = ayahs.findIndex(a => a.number === playingAyah);
-      if (currentIndex < ayahs.length - 1) {
-        const nextAyah = ayahs[currentIndex + 1];
-        handlePlayAudio(nextAyah);
-      } else {
-        setPlayingAyah(null);
-      }
-    } else {
-      setPlayingAyah(null);
-    }
-  };
-
-  const hideAyahWords = (text: string) => {
-    if (!memorizationMode) return text;
-
-    const words = text.split(' ');
-    const wordsToHide = Math.floor(words.length * (hidePercentage / 100));
-    const hiddenIndices = new Set<number>();
-
-    while (hiddenIndices.size < wordsToHide) {
-      hiddenIndices.add(Math.floor(Math.random() * words.length));
-    }
-
-    return words.map((word, index) => {
-      if (hiddenIndices.has(index)) {
-        return '___';
-      }
-      return word;
-    }).join(' ');
-  };
-
-  const getFontSizeClass = () => {
-    const sizes = ['text-xl md:text-2xl', 'text-2xl md:text-3xl', 'text-3xl md:text-4xl', 'text-4xl md:text-5xl'];
-    return sizes[fontSize] || sizes[1];
-  };
-
-  const filteredSurahs = surahs.filter(
-    (surah) =>
-      surah.name.includes(searchQuery) ||
-      surah.englishName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      surah.englishNameTranslation.toLowerCase().includes(searchQuery.toLowerCase())
+      const audio = new Audio(audioUrl(global));
+      audioRef.current = audio;
+      setPlaying(global);
+      setSelected(null);
+      const [s, a] = fromGlobal(meta, global);
+      const target = pageOf(meta, s, a);
+      setPage((cur) => (spreadOf(cur, wide).includes(target) ? cur : target));
+      audio.onended = () => {
+        if (audioRef.current !== audio) return;
+        if (global < 6236) playFrom(global + 1);
+        else stopAudio();
+      };
+      audio.onerror = () => audioRef.current === audio && stopAudio();
+      audio.play().catch(() => audioRef.current === audio && stopAudio());
+    },
+    [meta, wide, stopAudio]
   );
 
-  if (loading) {
+  useEffect(() => () => audioRef.current?.pause(), []);
+
+  const togglePagePlayback = async () => {
+    if (!meta) return;
+    if (playing) {
+      stopAudio();
+      return;
+    }
+    const ayahs = await loadPage(meta, spread[0]);
+    if (ayahs[0]) playFrom(ayahs[0].global);
+  };
+
+  const toggleBookmark = () => {
+    const p = spread[0];
+    setBookmarks((b) => (b.includes(p) ? b.filter((x) => x !== p) : [...b, p].sort((x, y) => x - y)));
+  };
+  const isBookmarked = spread.some((p) => bookmarks.includes(p));
+
+  const filteredSurahs = useMemo(() => {
+    if (!meta) return [];
+    const raw = search.trim();
+    const q = normalizeArabic(raw);
+    if (!q) return meta.surahs;
+    return meta.surahs.filter((s) => normalizeArabic(s.name).includes(q) || String(s.n) === raw);
+  }, [meta, search]);
+
+  const surahAtPage = (p: number) => (meta ? meta.surahs[meta.pages[p - 1][0] - 1].name : '');
+
+  if (metaError) {
     return (
-      <div className="min-h-screen islamic-pattern dark:bg-gray-950 flex items-center justify-center">
-        <div className="text-center">
-          <BookOpen className="text-green-700 dark:text-green-500 w-16 h-16 animate-pulse mx-auto mb-4" />
-          <p className="text-2xl text-gray-700 dark:text-gray-300" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
-            جاري تحميل القرآن الكريم...
-          </p>
-        </div>
+      <div className="min-h-screen islamic-pattern dark:bg-gray-950 flex items-center justify-center p-6">
+        <p className="text-xl text-gray-700 dark:text-gray-300 text-center" style={UI_FONT}>
+          تعذّر تحميل المصحف. تأكد من الاتصال وافتح الصفحة مرة ثانية.
+        </p>
       </div>
     );
   }
 
-  if (selectedSurah) {
+  // ------------------------------- Reader -------------------------------
+  if (view === 'reader' && meta) {
+    const iconBtn = 'p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-[var(--mushaf-ink)]';
     return (
-      <div className="min-h-screen islamic-pattern dark:bg-gray-950 p-4 md:p-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <button
-                onClick={() => {
-                  setSelectedSurah(null);
-                  setAyahs([]);
-                  setPlayingAyah(null);
-                  audioRef.current?.pause();
-                }}
-                className="flex items-center gap-2 text-green-800 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 transition-colors"
-                style={{ fontFamily: 'Traditional Arabic, Arial' }}
-              >
-                <ArrowLeft size={20} />
-                <span className="font-medium">العودة للسور</span>
-              </button>
-
-              <button
-                onClick={() => setShowSettings(!showSettings)}
-                className="p-3 bg-green-700 hover:bg-green-800 text-white rounded-full transition-colors"
-              >
-                <Settings size={20} />
-              </button>
-            </div>
-
-            {showSettings && (
-              <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl p-6 mb-4 border-2 border-green-800/20 dark:border-green-700/30">
-                <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
-                  الإعدادات
-                </h3>
-
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-700 dark:text-gray-300" style={{ fontFamily: 'Traditional Arabic, Arial' }}>حجم الخط</span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setFontSize(Math.max(0, fontSize - 1))}
-                        className="p-2 bg-green-700 hover:bg-green-800 text-white rounded-lg transition-colors"
-                        disabled={fontSize === 0}
-                      >
-                        <ZoomOut size={18} />
-                      </button>
-                      <span className="text-gray-700 dark:text-gray-300 w-8 text-center">{fontSize + 1}</span>
-                      <button
-                        onClick={() => setFontSize(Math.min(3, fontSize + 1))}
-                        className="p-2 bg-green-700 hover:bg-green-800 text-white rounded-lg transition-colors"
-                        disabled={fontSize === 3}
-                      >
-                        <ZoomIn size={18} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-700 dark:text-gray-300" style={{ fontFamily: 'Traditional Arabic, Arial' }}>التشغيل التلقائي</span>
-                    <button
-                      onClick={() => setAutoPlay(!autoPlay)}
-                      className={`px-4 py-2 rounded-lg transition-colors ${
-                        autoPlay
-                          ? 'bg-green-700 text-white'
-                          : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                      }`}
-                      style={{ fontFamily: 'Traditional Arabic, Arial' }}
-                    >
-                      {autoPlay ? 'مفعّل' : 'معطّل'}
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-700 dark:text-gray-300" style={{ fontFamily: 'Traditional Arabic, Arial' }}>الترجمة الإنجليزية</span>
-                    <button
-                      onClick={() => setShowTranslation(!showTranslation)}
-                      className={`px-4 py-2 rounded-lg transition-colors ${
-                        showTranslation
-                          ? 'bg-green-700 text-white'
-                          : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                      }`}
-                      style={{ fontFamily: 'Traditional Arabic, Arial' }}
-                    >
-                      {showTranslation ? 'مفعّل' : 'معطّل'}
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-700 dark:text-gray-300" style={{ fontFamily: 'Traditional Arabic, Arial' }}>التفسير الميسر</span>
-                    <button
-                      onClick={() => setShowTafsir(!showTafsir)}
-                      className={`px-4 py-2 rounded-lg transition-colors ${
-                        showTafsir
-                          ? 'bg-green-700 text-white'
-                          : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                      }`}
-                      style={{ fontFamily: 'Traditional Arabic, Arial' }}
-                    >
-                      {showTafsir ? 'مفعّل' : 'معطّل'}
-                    </button>
-                  </div>
-
-                  <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-gray-700 dark:text-gray-300" style={{ fontFamily: 'Traditional Arabic, Arial' }}>وضع المصحف</span>
-                      <button
-                        onClick={() => {
-                          setMushafMode(!mushafMode);
-                          if (!mushafMode) {
-                            setMemorizationMode(false);
-                          }
-                        }}
-                        className={`px-4 py-2 rounded-lg transition-colors ${
-                          mushafMode
-                            ? 'bg-amber-600 text-white'
-                            : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                        }`}
-                        style={{ fontFamily: 'Traditional Arabic, Arial' }}
-                      >
-                        {mushafMode ? 'مفعّل' : 'معطّل'}
-                      </button>
-                    </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
-                      عرض صفحة المصحف بالخط العثماني
-                    </p>
-                  </div>
-
-                  <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-gray-700 dark:text-gray-300" style={{ fontFamily: 'Traditional Arabic, Arial' }}>وضع الحفظ</span>
-                      <button
-                        onClick={() => {
-                          setMemorizationMode(!memorizationMode);
-                          if (!memorizationMode) {
-                            setMushafMode(false);
-                          }
-                        }}
-                        className={`px-4 py-2 rounded-lg transition-colors ${
-                          memorizationMode
-                            ? 'bg-yellow-600 text-white'
-                            : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                        }`}
-                        style={{ fontFamily: 'Traditional Arabic, Arial' }}
-                      >
-                        {memorizationMode ? 'مفعّل' : 'معطّل'}
-                      </button>
-                    </div>
-                    {memorizationMode && (
-                      <div className="mt-2">
-                        <label className="text-sm text-gray-600 dark:text-gray-400 block mb-1" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
-                          نسبة الإخفاء: {hidePercentage}%
-                        </label>
-                        <input
-                          type="range"
-                          min="10"
-                          max="90"
-                          step="10"
-                          value={hidePercentage}
-                          onChange={(e) => setHidePercentage(Number(e.target.value))}
-                          className="w-full"
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 md:p-10 border-t-4 border-yellow-600 dark:border-yellow-500">
-              <div className="text-center mb-6">
-                <div className="flex items-center justify-center gap-3 mb-4">
-                  <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-yellow-600 to-yellow-600"></div>
-                  <div className="w-3 h-3 bg-yellow-600 rounded-full"></div>
-                  <div className="w-16 h-0.5 bg-gradient-to-l from-transparent via-yellow-600 to-yellow-600"></div>
-                </div>
-
-                <h1 className="text-4xl md:text-6xl font-bold text-gray-800 dark:text-gray-100 mb-3" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
-                  {selectedSurah.name}
-                </h1>
-
-                <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-2" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
-                  {selectedSurah.englishNameTranslation}
-                </p>
-
-                <div className="flex items-center justify-center gap-4 text-gray-600 dark:text-gray-400">
-                  <span className="px-4 py-2 bg-green-100 dark:bg-green-900/30 rounded-lg" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
-                    {selectedSurah.revelationType === 'Meccan' ? 'مكية' : 'مدنية'}
-                  </span>
-                  <span className="px-4 py-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
-                    {selectedSurah.numberOfAyahs} آية
-                  </span>
-                </div>
-              </div>
-
-              {selectedSurah.number !== 1 && selectedSurah.number !== 9 && (
-                <div className="text-center mb-8 py-6 bg-gradient-to-r from-green-50 to-teal-50 dark:from-green-900/20 dark:to-teal-900/20 rounded-2xl">
-                  <p className="text-3xl md:text-4xl text-gray-800 dark:text-gray-200" style={{ fontFamily: QURAN_FONT, lineHeight: 2.2 }}>
-                    بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-                  </p>
-                </div>
-              )}
-            </div>
+      <div className="mushaf min-h-screen bg-[var(--mushaf-bg)]">
+        <div className="sticky z-30 bg-[var(--mushaf-bg)] border-b border-[var(--mushaf-line)]" style={{ top: 'env(safe-area-inset-top, 0px)' }}>
+          <div className="max-w-6xl mx-auto flex items-center gap-1 px-2 py-2" style={UI_FONT}>
+            <button
+              onClick={() => {
+                stopAudio();
+                setView('index');
+              }}
+              className="flex items-center gap-1 px-3 py-2 rounded-xl font-bold text-green-800 dark:text-green-300 hover:bg-black/5 dark:hover:bg-white/10"
+            >
+              <ChevronRight size={20} /> الفهرس
+            </button>
+            <div className="flex-1 text-center truncate font-bold text-[var(--mushaf-ink)]">{surahAtPage(spread[0])}</div>
+            <button onClick={() => setFontScale((f) => Math.max(0.8, +(f - 0.1).toFixed(1)))} aria-label="تصغير الخط" className={iconBtn}>
+              <Minus size={18} />
+            </button>
+            <button onClick={() => setFontScale((f) => Math.min(1.6, +(f + 0.1).toFixed(1)))} aria-label="تكبير الخط" className={iconBtn}>
+              <Plus size={18} />
+            </button>
+            <button onClick={toggleBookmark} aria-pressed={isBookmarked} aria-label="علامة على الصفحة" className={`${iconBtn} !text-[var(--mushaf-gold)]`}>
+              {isBookmarked ? <BookmarkCheck size={20} className="fill-current" /> : <Bookmark size={20} />}
+            </button>
           </div>
-
-          {loadingAyahs ? (
-            <div className="text-center py-12">
-              <BookOpen className="text-green-700 dark:text-green-500 w-16 h-16 animate-pulse mx-auto mb-4" />
-              <p className="text-xl text-gray-700 dark:text-gray-300" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
-                جاري تحميل الآيات...
-              </p>
-            </div>
-          ) : mushafMode ? (
-            <div className="mb-8">
-              <div className="bg-gradient-to-b from-amber-50 via-white to-amber-50 dark:from-gray-800 dark:via-gray-900 dark:to-gray-800 rounded-3xl p-8 md:p-12 border-4 border-amber-700/30 dark:border-amber-600/20 shadow-2xl">
-                <div className="max-w-3xl mx-auto">
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(251,191,36,0.1)_0%,_transparent_70%)]"></div>
-
-                    <div className="relative text-center leading-loose" style={{ direction: 'rtl' }}>
-                      {ayahs.map((ayah, index) => (
-                        <span key={ayah.number} className="inline">
-                          <span
-                            className={`${getFontSizeClass()} text-gray-900 dark:text-gray-100`}
-                            style={{
-                              fontFamily: QURAN_FONT,
-                              lineHeight: '2.8'
-                            }}
-                          >
-                            {ayah.text}
-                          </span>
-                          <span
-                            className="inline-flex items-center justify-center mx-2 align-middle"
-                            style={{ verticalAlign: 'middle' }}
-                          >
-                            <span
-                              className="inline-flex items-center justify-center w-8 h-8 text-amber-700 dark:text-amber-500 font-bold text-sm"
-                              style={{
-                                background: 'radial-gradient(circle, rgba(251,191,36,0.2) 0%, transparent 70%)',
-                                border: '2px solid currentColor',
-                                borderRadius: '50%'
-                              }}
-                            >
-                              {ayah.numberInSurah}
-                            </span>
-                          </span>
-                          {index < ayahs.length - 1 && ' '}
-                        </span>
-                      ))}
-                    </div>
-
-                    <div className="mt-8 pt-6 border-t-2 border-amber-700/20 dark:border-amber-600/20">
-                      <div className="flex flex-wrap gap-2 justify-center">
-                        {ayahs.map((ayah) => {
-                          const isBookmarked = bookmarkedAyahs.has(`${selectedSurah.number}-${ayah.numberInSurah}`);
-                          return (
-                            <div key={ayah.number} className="flex gap-1">
-                              <button
-                                onClick={() => handlePlayAudio(ayah)}
-                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                  playingAyah === ayah.number
-                                    ? 'bg-green-700 text-white'
-                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-green-600 hover:text-white'
-                                }`}
-                                title={`تشغيل الآية ${ayah.numberInSurah}`}
-                              >
-                                {ayah.numberInSurah}
-                              </button>
-                              {currentUser && (
-                                <button
-                                  onClick={() => toggleBookmark(ayah)}
-                                  className={`p-1.5 rounded-lg transition-all ${
-                                    isBookmarked
-                                      ? 'bg-yellow-600 text-white'
-                                      : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-yellow-500 hover:text-white'
-                                  }`}
-                                  title={isBookmarked ? 'إزالة العلامة' : 'وضع علامة'}
-                                >
-                                  <Bookmark size={14} />
-                                </button>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4 mb-8">
-              {ayahs.map((ayah) => {
-                const isBookmarked = bookmarkedAyahs.has(`${selectedSurah.number}-${ayah.numberInSurah}`);
-                return (
-                  <div
-                    key={ayah.number}
-                    className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl p-6 border-2 border-green-800/20 dark:border-green-700/30 hover:border-yellow-600 dark:hover:border-yellow-500 transition-all duration-300"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="flex flex-col gap-2">
-                        <button
-                          onClick={() => handlePlayAudio(ayah)}
-                          className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg"
-                        >
-                          {playingAyah === ayah.number ? (
-                            <Pause size={20} fill="white" />
-                          ) : (
-                            <Volume2 size={20} />
-                          )}
-                        </button>
-
-                        {currentUser && (
-                          <button
-                            onClick={() => toggleBookmark(ayah)}
-                            className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg ${
-                              isBookmarked
-                                ? 'bg-gradient-to-br from-yellow-600 to-yellow-700 text-white'
-                                : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-gray-600'
-                            }`}
-                          >
-                            {isBookmarked ? (
-                              <BookmarkCheck size={20} />
-                            ) : (
-                              <Bookmark size={20} />
-                            )}
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-yellow-600 to-yellow-700 text-white rounded-lg flex items-center justify-center font-bold shadow-md">
-                            {ayah.numberInSurah}
-                          </div>
-                        </div>
-
-                        <p
-                          className={`${getFontSizeClass()} leading-loose text-gray-800 dark:text-gray-100 text-right mb-4`}
-                          style={{ fontFamily: QURAN_FONT, lineHeight: '2.5' }}
-                        >
-                          {hideAyahWords(ayah.text)}
-                        </p>
-
-                        {showTranslation && ayah.translation && (
-                          <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500">
-                            <p className="text-gray-700 dark:text-gray-300 text-base leading-relaxed">
-                              {ayah.translation}
-                            </p>
-                          </div>
-                        )}
-
-                        {showTafsir && ayah.tafsir && (
-                          <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border-l-4 border-green-500">
-                            <p className="text-gray-700 dark:text-gray-300 text-base leading-relaxed text-right" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
-                              {ayah.tafsir}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          <Footer />
         </div>
 
-        <audio
-          ref={audioRef}
-          onEnded={handleAudioEnded}
-          onError={() => setPlayingAyah(null)}
-        />
+        <main
+          className="max-w-6xl mx-auto px-2 md:px-4 py-3"
+          onTouchStart={(e) => (touchX.current = e.touches[0].clientX)}
+          onTouchEnd={(e) => {
+            if (touchX.current === null) return;
+            const dx = e.changedTouches[0].clientX - touchX.current;
+            touchX.current = null;
+            if (Math.abs(dx) < 60) return;
+            // Like turning an Arabic mushaf page: drag right → next page
+            if (dx > 0) next();
+            else prev();
+          }}
+        >
+          <div className={`grid gap-3 ${spread.length === 2 ? 'grid-cols-2' : 'grid-cols-1 max-w-2xl mx-auto'}`} dir="rtl">
+            {spread.map((p) => (
+              <MushafPage
+                key={p}
+                meta={meta}
+                page={p}
+                fontScale={fontScale}
+                selected={selected?.global ?? null}
+                playing={playing}
+                onAyahTap={setSelected}
+              />
+            ))}
+          </div>
+        </main>
+
+        <nav className="sticky bottom-0 z-30 bg-[var(--mushaf-bg)] border-t border-[var(--mushaf-line)]" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+          <div className="max-w-6xl mx-auto flex items-center justify-between gap-2 px-3 py-2" style={UI_FONT}>
+            <button
+              onClick={prev}
+              disabled={spread[0] <= 1}
+              className="flex items-center gap-1 px-4 py-2.5 rounded-xl bg-[var(--mushaf-paper)] border border-[var(--mushaf-line)] text-[var(--mushaf-ink)] disabled:opacity-40 font-bold"
+            >
+              <ChevronRight size={20} /> السابقة
+            </button>
+            <button
+              onClick={togglePagePlayback}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-white ${playing ? 'bg-red-600' : 'bg-green-700'}`}
+            >
+              {playing ? <Square size={18} /> : <Play size={18} />}
+              {playing ? 'إيقاف' : 'استماع'}
+            </button>
+            <button
+              onClick={next}
+              disabled={spread[spread.length - 1] >= TOTAL_PAGES}
+              className="flex items-center gap-1 px-4 py-2.5 rounded-xl bg-[var(--mushaf-paper)] border border-[var(--mushaf-line)] text-[var(--mushaf-ink)] disabled:opacity-40 font-bold"
+            >
+              التالية <ChevronLeft size={20} />
+            </button>
+          </div>
+        </nav>
+
+        {selected && <AyahSheet meta={meta} ayah={selected} onClose={() => setSelected(null)} onPlayFrom={playFrom} />}
       </div>
     );
   }
+
+  // ------------------------------- Index -------------------------------
+  const juzStartPages = meta ? meta.juz.map(([s, a]) => pageOf(meta, s, a)) : [];
+  const card = 'rounded-2xl bg-white/90 dark:bg-gray-800/90 border-2 border-green-800/10 dark:border-green-700/30 hover:border-green-600 transition-colors text-right';
 
   return (
     <div className="min-h-screen islamic-pattern dark:bg-gray-950 p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <button
-            onClick={() => navigate('/muslim-guide')}
-            className="flex items-center gap-2 text-green-800 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 transition-colors mb-4"
-            style={{ fontFamily: 'Traditional Arabic, Arial' }}
-          >
-            <ArrowLeft size={20} />
-            <span className="font-medium">العودة</span>
-          </button>
+      <div className="max-w-4xl mx-auto">
+        <button onClick={() => navigate('/muslim-guide')} className="mb-4 flex items-center gap-2 text-green-800 dark:text-green-400 hover:text-green-900" style={UI_FONT}>
+          <ArrowLeft size={20} /> العودة
+        </button>
 
-          <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 md:p-10 border-t-4 border-yellow-600 dark:border-yellow-500">
-            <div className="mb-8">
-              <div className="relative py-6">
-                <div className="absolute inset-0 flex items-center justify-center opacity-10">
-                  <div className="w-64 h-64 bg-gradient-to-br from-green-800 to-yellow-600 rounded-full blur-3xl"></div>
-                </div>
-                <div className="relative text-center">
-                  <p className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-green-800 via-green-700 to-green-800 bg-clip-text text-transparent mb-2" style={{ fontFamily: 'Traditional Arabic, serif', lineHeight: '1.8' }}>
-                    بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-                  </p>
-                  <div className="flex items-center justify-center gap-2 mt-2">
-                    <div className="w-12 h-0.5 bg-gradient-to-r from-transparent via-yellow-600 to-yellow-600"></div>
-                    <div className="w-2 h-2 bg-yellow-600 rounded-full"></div>
-                    <div className="w-12 h-0.5 bg-gradient-to-l from-transparent via-yellow-600 to-yellow-600"></div>
-                  </div>
-                </div>
-              </div>
+        <header className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-3xl shadow-xl p-5 md:p-8 border-t-4 border-yellow-600 dark:border-yellow-500 mb-5">
+          <div className="flex items-center gap-4 mb-5">
+            <div className="w-14 h-14 shrink-0 bg-gradient-to-br from-green-800 to-green-700 rounded-full flex items-center justify-center shadow-lg border-4 border-yellow-600/30">
+              <BookOpen size={26} className="text-yellow-400" />
             </div>
-
-            <div className="flex justify-center mb-6">
-              <div className="w-20 h-20 bg-gradient-to-br from-green-800 to-green-700 rounded-full flex items-center justify-center shadow-xl border-4 border-yellow-600/30">
-                <BookOpen size={36} className="text-yellow-400" />
-              </div>
+            <div className="min-w-0">
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-gray-100" style={UI_FONT}>
+                المصحف الشريف
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400" style={UI_FONT}>
+                مصحف المدينة برواية حفص، بخط مجمع الملك فهد
+              </p>
             </div>
-
-            <h1 className="text-3xl md:text-5xl font-bold text-gray-800 dark:text-gray-100 mb-4 text-center" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
-              القرآن الكريم
-            </h1>
-
-            <div className="flex items-center justify-center gap-3 mb-6">
-              <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-yellow-600 dark:via-yellow-500 to-transparent"></div>
-              <div className="w-3 h-3 bg-yellow-600 dark:bg-yellow-500 rounded-full"></div>
-              <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-yellow-600 dark:via-yellow-500 to-transparent"></div>
-            </div>
-
-            <p className="text-gray-600 dark:text-gray-300 text-xl md:text-2xl text-center" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
-              قراءة واستماع للقرآن الكريم
-            </p>
           </div>
-        </div>
 
-        <div className="mb-8">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="ابحث عن سورة..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-6 py-4 pr-12 rounded-2xl border-2 border-green-800/20 dark:border-green-700/30 bg-white/95 dark:bg-gray-800/95 text-gray-800 dark:text-gray-200 text-lg focus:outline-none focus:border-green-600 dark:focus:border-green-500 transition-colors"
-              style={{ fontFamily: 'Traditional Arabic, Arial' }}
-            />
-            {searchQuery ? (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              >
-                <X size={24} />
-              </button>
-            ) : (
-              <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" size={24} />
-            )}
-          </div>
-        </div>
-
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {filteredSurahs.map((surah) => (
+          {meta && (
             <button
-              key={surah.number}
-              onClick={() => handleSurahClick(surah)}
-              className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl p-6 border-2 border-green-800/20 dark:border-green-700/30 hover:border-yellow-600 dark:hover:border-yellow-500 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 text-right"
+              onClick={() => openAt(page)}
+              className="w-full flex items-center justify-between gap-3 p-4 rounded-2xl bg-gradient-to-r from-green-800 to-green-700 text-white shadow-lg mb-4"
+              style={UI_FONT}
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-green-700 to-green-800 text-white rounded-lg flex items-center justify-center font-bold text-xl shadow-lg">
-                  {surah.number}
-                </div>
-                <div className="flex-1 mr-4">
-                  <h3 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-gray-100 mb-1" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
-                    {surah.name}
-                  </h3>
-                  <p className="text-sm md:text-base text-gray-600 dark:text-gray-400" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
-                    {surah.englishNameTranslation}
-                  </p>
-                </div>
-              </div>
+              <span className="text-right">
+                <span className="block text-sm text-green-100">{page > 1 ? 'أكمل من حيث وقفت' : 'ابدأ القراءة'}</span>
+                <span className="block text-xl font-bold">
+                  سورة {surahAtPage(page)} · صفحة {toArabicDigits(page)}
+                </span>
+              </span>
+              <ChevronLeft size={26} className="text-yellow-300" />
+            </button>
+          )}
 
-              <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
-                <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 rounded-lg" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
-                  {surah.revelationType === 'Meccan' ? 'مكية' : 'مدنية'}
-                </span>
-                <span className="px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
-                  {surah.numberOfAyahs} آية
-                </span>
-              </div>
+          <div className="flex gap-2">
+            <div className="relative flex-1 min-w-0">
+              <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                id="surah-search"
+                type="search"
+                placeholder="ابحث عن سورة..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setTab('surahs');
+                }}
+                className="w-full pr-12 pl-4 py-3 rounded-xl border-2 border-green-200 dark:border-green-800 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:border-green-600 outline-none text-lg"
+                style={UI_FONT}
+              />
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const n = parseInt(goTo.replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))), 10);
+                if (n >= 1 && n <= TOTAL_PAGES) openAt(n);
+              }}
+              className="flex shrink-0"
+            >
+              <input
+                id="goto-page"
+                inputMode="numeric"
+                placeholder="صفحة"
+                value={goTo}
+                onChange={(e) => setGoTo(e.target.value)}
+                className="w-16 px-2 py-3 rounded-r-xl border-2 border-l-0 border-green-200 dark:border-green-800 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-center outline-none"
+                style={UI_FONT}
+                aria-label="رقم الصفحة"
+              />
+              <button type="submit" className="px-3 rounded-l-xl bg-green-700 text-white font-bold" style={UI_FONT}>
+                اذهب
+              </button>
+            </form>
+          </div>
+        </header>
+
+        {bookmarks.length > 0 && meta && (
+          <section className="mb-5">
+            <h2 className="text-lg font-bold text-gray-700 dark:text-gray-300 mb-2 px-1" style={UI_FONT}>
+              العلامات
+            </h2>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {bookmarks.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => openAt(p)}
+                  className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl bg-white/90 dark:bg-gray-800 border-2 border-yellow-600/40 text-gray-800 dark:text-gray-100"
+                  style={UI_FONT}
+                >
+                  <BookmarkCheck size={16} className="text-yellow-600" />
+                  {surahAtPage(p)} · {toArabicDigits(p)}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <div className="flex gap-2 mb-4" style={UI_FONT}>
+          {(['surahs', 'juz'] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              aria-pressed={tab === t}
+              className={`flex-1 py-2.5 rounded-xl font-bold border-2 ${
+                tab === t
+                  ? 'bg-green-700 border-green-700 text-white'
+                  : 'bg-white/80 dark:bg-gray-800 border-green-200 dark:border-green-800 text-gray-700 dark:text-gray-300'
+              }`}
+            >
+              {t === 'surahs' ? 'السور' : 'الأجزاء'}
             </button>
           ))}
         </div>
 
-        {filteredSurahs.length === 0 && (
-          <div className="text-center py-12">
-            <Search className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-xl text-gray-600 dark:text-gray-400" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
-              لم يتم العثور على نتائج
-            </p>
+        {!meta && <div className="h-64 rounded-2xl bg-white/60 dark:bg-gray-800/60 animate-pulse" />}
+
+        {meta && tab === 'surahs' && (
+          <div className="grid sm:grid-cols-2 gap-3 mb-8">
+            {filteredSurahs.map((s) => (
+              <button key={s.n} onClick={() => openAt(s.page)} className={`flex items-center gap-3 p-4 ${card}`}>
+                <span className="w-11 h-11 shrink-0 rounded-xl bg-gradient-to-br from-yellow-500 to-yellow-700 text-white font-bold flex items-center justify-center">
+                  {toArabicDigits(s.n)}
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-2xl text-gray-800 dark:text-gray-100" style={{ fontFamily: QURAN_FONT }}>
+                    {s.name}
+                  </span>
+                  <span className="block text-sm text-gray-500 dark:text-gray-400" style={UI_FONT}>
+                    {s.type} · {toArabicDigits(s.ayahs)} آية
+                  </span>
+                </span>
+                <span className="text-sm text-gray-500 dark:text-gray-400 shrink-0" style={UI_FONT}>
+                  ص {toArabicDigits(s.page)}
+                </span>
+              </button>
+            ))}
+            {filteredSurahs.length === 0 && (
+              <p className="col-span-full text-center text-gray-600 dark:text-gray-400 py-8" style={UI_FONT}>
+                ما فيه سورة بهذا الاسم.
+              </p>
+            )}
           </div>
         )}
 
-        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg text-center border-2 border-yellow-600/30 dark:border-yellow-500/30 mb-8">
-          <BookOpen className="w-8 h-8 text-yellow-600 dark:text-yellow-500 mx-auto mb-4" />
-          <p className="text-gray-700 dark:text-gray-200 text-2xl md:text-3xl leading-relaxed font-semibold mb-2" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
-            إِنَّ هَٰذَا الْقُرْآنَ يَهْدِي لِلَّتِي هِيَ أَقْوَمُ
-          </p>
-          <p className="text-yellow-700 dark:text-yellow-500 text-base md:text-lg font-medium" style={{ fontFamily: 'Traditional Arabic, Arial' }}>
-            الإسراء: 9
-          </p>
-        </div>
+        {meta && tab === 'juz' && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
+            {juzStartPages.map((p, i) => (
+              <button key={i} onClick={() => openAt(p)} className={`p-4 ${card}`} style={UI_FONT}>
+                <span className="block text-xl font-bold text-gray-800 dark:text-gray-100">الجزء {toArabicDigits(i + 1)}</span>
+                <span className="block text-sm text-gray-500 dark:text-gray-400">
+                  {surahAtPage(p)} · ص {toArabicDigits(p)}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
 
+        <p className="text-center text-sm text-gray-500 dark:text-gray-400 mb-6" style={UI_FONT}>
+          النص من موسوعة القرآن الكريم (QuranEnc) · الخط من مجمع الملك فهد · تقسيم الصفحات من Tanzil · التلاوة: مشاري العفاسي
+        </p>
         <Footer />
       </div>
     </div>

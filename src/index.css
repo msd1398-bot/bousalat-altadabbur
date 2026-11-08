@@ -137,3 +137,31 @@
     transform: none;
   }
 }
+
+/* Mushaf reader: paper & ink. Dark mode is class-based (html.dark). */
+.mushaf {
+  --mushaf-bg: #efe7d2;
+  --mushaf-paper: #fffaf0;
+  --mushaf-ink: #1f1a12;
+  --mushaf-muted: #7a6643;
+  --mushaf-gold: #b07d22;
+  --mushaf-line: rgba(176, 125, 34, 0.35);
+  --mushaf-line-strong: rgba(176, 125, 34, 0.6);
+  --mushaf-banner: #f5e9cc;
+  --mushaf-select: rgba(176, 125, 34, 0.16);
+  --mushaf-active: rgba(22, 163, 74, 0.22);
+  --mushaf-skeleton: rgba(176, 125, 34, 0.1);
+}
+.dark .mushaf {
+  --mushaf-bg: #0d1310;
+  --mushaf-paper: #151c17;
+  --mushaf-ink: #eee7d4;
+  --mushaf-muted: #bba77c;
+  --mushaf-gold: #d1a64a;
+  --mushaf-line: rgba(209, 166, 74, 0.3);
+  --mushaf-line-strong: rgba(209, 166, 74, 0.55);
+  --mushaf-banner: #1e271f;
+  --mushaf-select: rgba(209, 166, 74, 0.18);
+  --mushaf-active: rgba(74, 222, 128, 0.2);
+  --mushaf-skeleton: rgba(209, 166, 74, 0.08);
+}
