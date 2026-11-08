@@ -1,6 +1,7 @@
 import { BookOpen, Heart, Compass, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Footer from '../components/Footer';
+import InstallAppCard from '../components/InstallAppCard';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 
 export default function Home() {
@@ -100,6 +101,8 @@ export default function Home() {
               </div>
             </Link>
           </div>
+
+          <InstallAppCard />
 
           <div
             data-reveal="flip-up"
